@@ -1,6 +1,7 @@
 import tornado.ioloop
 import tornado.web
 from github_access import list_modules, clone
+from util import list_installed_modules
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -10,10 +11,14 @@ class MainHandler(tornado.web.RequestHandler):
 
 class ModuleHandler(tornado.web.RequestHandler):
     def get(self, slug):
-        if slug == "list":  # list all available modules
+        if slug == "list_available":  # list all available modules
             modules = list_modules()
-            self.write({'type': 'list_modules',
+            self.write({'type': 'list_available_modules',
                         'modules': modules})
+        elif slug == "list_installed":  # list istalled modules
+            modules = list_installed_modules()
+            self.write({'type': 'list_installed_modules',
+                        'installed_modules': modules})
         elif slug == "download": # download module given by query param 'name'
             module_to_download = self.get_argument('name', None)  # TODO handle input of wrong module name (BaseModule?)
             print("Installing Module: " + module_to_download)

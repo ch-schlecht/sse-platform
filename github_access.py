@@ -1,8 +1,8 @@
 import os
 from base64 import b64decode
 from github import Github
+from CONSTANTS import MODULE_DIRECTORY
 
-MODULE_DIRECTORY = "modules/"
 github = Github(" ae3b07d71b6285aef2333785b5fc20d703f316a1")  # personal access token, replace by dedicated account later
 repo = github.get_user().get_repo("sse-platform-modules")
 
