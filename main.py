@@ -1,7 +1,7 @@
 import tornado.ioloop
 import tornado.web
 from github_access import list_modules, clone
-from util import list_installed_modules
+from util import list_installed_modules, remove_module_files
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -26,7 +26,14 @@ class ModuleHandler(tornado.web.RequestHandler):
             self.write({'type': 'installation_response',
                         'module': module_to_download,
                         'success': success})
-
+        elif slug == "uninstall":  # uninstall module given by query param 'name'
+            module_to_uninstall = self.get_argument('name', None)
+            # TODO make sure this module is not running, or if running, stop it before deleting the files
+            print('Uninstalling Module: ' + module_to_uninstall)
+            success = remove_module_files(module_to_uninstall)
+            self.write({'type': 'uninstallation_response',
+                        'module': module_to_uninstall,
+                        'success': success})
 
 def make_app():
     return tornado.web.Application([
