@@ -1,7 +1,7 @@
 import tornado.ioloop
 import tornado.web
 from github_access import list_modules, clone
-from util import list_installed_modules, remove_module_files
+from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -19,7 +19,7 @@ class ModuleHandler(tornado.web.RequestHandler):
             modules = list_installed_modules()
             self.write({'type': 'list_installed_modules',
                         'installed_modules': modules})
-        elif slug == "download": # download module given by query param 'name'
+        elif slug == "download":  # download module given by query param 'name'
             module_to_download = self.get_argument('name', None)  # TODO handle input of wrong module name (BaseModule?)
             print("Installing Module: " + module_to_download)
             success = clone(module_to_download)  # download module
@@ -35,10 +35,29 @@ class ModuleHandler(tornado.web.RequestHandler):
                         'module': module_to_uninstall,
                         'success': success})
 
+
+class ConfigHandler(tornado.web.RequestHandler):
+    def get(self, slug):
+        if slug == "view":
+            module = self.get_argument("module_name", None)  # TODO handle input of wrong module name
+            config_path = get_config_path(module)
+            config = load_config(config_path)
+            self.write({'type': 'view_config',
+                        'config': config})
+
+    def post(self, slug):
+        if slug == "update":
+            module = self.get_argument("module_name", None)  # TODO handle input of wrong module name
+            config_path = get_config_path(module)
+            new_config = tornado.escape.json_decode(self.request.body)
+            write_config(config_path, new_config)
+
+
 def make_app():
     return tornado.web.Application([
         (r"/", MainHandler),
         (r"/modules/([a-zA-Z\-0-9\.:,_]+)", ModuleHandler),
+        (r"/configs/([a-zA-Z\-0-9\.:,_]+)", ConfigHandler),
         (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"})
     ])
 
