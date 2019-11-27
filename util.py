@@ -1,6 +1,8 @@
 import os
 import shutil
 import json
+import socket
+from contextlib import closing
 from CONSTANTS import MODULE_DIRECTORY
 
 
@@ -39,3 +41,10 @@ def load_config(config_path):
 def write_config(config_path, data):
     if config_path is not None:
         json.dump(data, open(config_path, "w"))  # TODO maybe wrap this in try/except to give user a feedback of success
+
+
+def determine_free_port():
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(('', 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]
