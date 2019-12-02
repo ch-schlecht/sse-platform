@@ -11,12 +11,40 @@ servers = {}
 
 
 class MainHandler(tornado.web.RequestHandler):
+    """
+    Serves the Frontend
+
+    """
+
     def get(self):
+        """
+        GET request for the index.html page
+
+        """
+
         self.render("index.html")
 
 
 class ModuleHandler(tornado.web.RequestHandler):
+    """
+    Handles module architecture
+
+    """
+
     def get(self, slug):
+        """
+        GET Request of /modules/[slug]
+
+        slug can either be: list_available, list_installed, download, uninstall
+            list_available: list all modules that can be installed from the remote repo
+            list_installed: list all installed modules
+            download: query param: 'module_name'
+                    download a module from the remote repo
+            uninstall: query param: 'module_name'
+                    delete a module
+
+        """
+
         if slug == "list_available":  # list all available modules
             modules = list_modules()
             self.write({'type': 'list_available_modules',
@@ -47,15 +75,36 @@ class ModuleHandler(tornado.web.RequestHandler):
 
 
 class ConfigHandler(tornado.web.RequestHandler):
+    """
+    Handles configs of modules
+
+    """
+
     def get(self, slug):
+        """
+        GET request of /configs/view
+            query param: 'module_name'
+                get the config of the module given by module_name
+
+        """
+
         if slug == "view":
             module = self.get_argument("module_name", None)  # TODO handle input of wrong module name
             config_path = get_config_path(module)
             config = load_config(config_path)
             self.write({'type': 'view_config',
+                        'module': module,
                         'config': config})
 
     def post(self, slug):
+        """
+        POST request of /configs/update
+            query param: 'module_name'
+            http body: json
+                changes the config of the module given by module_name to the json in the http body
+
+        """
+
         if slug == "update":
             module = self.get_argument("module_name", None)  # TODO handle input of wrong module name
             config_path = get_config_path(module)
@@ -64,7 +113,23 @@ class ConfigHandler(tornado.web.RequestHandler):
 
 
 class ExecutionHandler(tornado.web.RequestHandler):
+    """
+    handles execution and stopping of modules
+
+    """
+
     def get(self, slug):
+        """
+        GET request of /execution/[slug]
+
+        slug can eiter be: start, stop
+            start: query param: 'module_name'
+                start a module
+            stop: query param: 'module_name'
+                stop a module
+
+        """
+
         if slug == "start":
             module_to_start = self.get_argument("module_name", None)
             if module_to_start not in servers:
@@ -97,6 +162,14 @@ class ExecutionHandler(tornado.web.RequestHandler):
 
 
 def shutdown_module(module_name):
+    """
+    Stop a module, i.e. call the stop_signal function of the module and stop the module's http server.
+    this function is not supposed to be called directly, it is called through the API
+
+    :param module_name: the module to stop
+
+    """
+
     if module_name in servers:
         if module_name in sys.modules:
             # TODO check (maybe with hasattr) if the module has this function
@@ -107,6 +180,14 @@ def shutdown_module(module_name):
 
 
 def make_app():
+    """
+    Build the tornado Application
+
+    :returns: the tornado application
+    :rtype: tornado.web.Application
+
+    """
+
     return tornado.web.Application([
         (r"/", MainHandler),
         (r"/modules/([a-zA-Z\-0-9\.:,_]+)", ModuleHandler),
