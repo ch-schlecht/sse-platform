@@ -45,3 +45,13 @@ $ make html
 ```
 
 The freshly built docs will be in docs/build/html.
+
+
+## Tests
+
+Tests are implemented with [Pytest](http://doc.pytest.org/en/latest/index.html). Please refer to their [guide](http://doc.pytest.org/en/latest/getting-started.html) for installation.
+
+Once you installed Pytest, to run the tests, simply execute:
+```sh
+$ pytest
+```
