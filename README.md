@@ -51,7 +51,12 @@ The freshly built docs will be in docs/build/html.
 
 Tests are implemented with [Pytest](http://doc.pytest.org/en/latest/index.html). Please refer to their [guide](http://doc.pytest.org/en/latest/getting-started.html) for installation.
 
-Once you installed Pytest, to run the tests, simply execute:
+Once you installed Pytest, you also need to install the tornado plugin:
+```sh
+$ pip install pytest-tornado
+```
+
+to run the tests, simply execute:
 ```sh
 $ pytest
 ```

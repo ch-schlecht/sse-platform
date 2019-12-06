@@ -64,7 +64,7 @@ class ModuleHandler(tornado.web.RequestHandler):
             module_to_uninstall = self.get_argument('module_name', None)
 
             # check the module is not running, and if, stop it before uninstalling
-            if servers[module_to_uninstall]:
+            if module_to_uninstall in servers:
                 shutdown_module(module_to_uninstall)
 
             print('Uninstalling Module: ' + module_to_uninstall)
