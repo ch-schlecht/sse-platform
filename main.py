@@ -139,9 +139,12 @@ class ExecutionHandler(tornado.web.RequestHandler):
                 spec.loader.exec_module(module)
 
                 # starting the module application
-                # TODO consider the config of the module and ssl (or use global ssl certs from platform?)
+                # TODO consider ssl (or use global ssl certs from platform?)
                 # TODO maybe wrap in try/except to suggest succes to user (for now just returns True)
-                module_app = module.make_app()
+                module_config = get_config_path(module_to_start)
+                module.apply_config(module_config)   # function implemented by module
+                module_app = module.make_app()  # function implemented by module
+
                 module_server = tornado.httpserver.HTTPServer(module_app, no_keep_alive=True)  # need no-keep-alive to be able to stop server
                 servers[module_to_start] = module_server
                 port = determine_free_port()
