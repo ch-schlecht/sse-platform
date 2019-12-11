@@ -1,4 +1,6 @@
 # sse-platform
+[![Build Status](https://travis-ci.com/Smunfr/sse-platform.svg?branch=master)](https://travis-ci.com/Smunfr/sse-platform)
+[![Documentation Status](https://readthedocs.org/projects/sse-platform/badge/?version=latest)](https://sse-platform.readthedocs.io/en/latest/?badge=latest)
 
 Platform to handle various modules of SoServ research project
 
@@ -27,7 +29,7 @@ $ python3 main.py
 
 ## Documentation
 
-The documentation is built with [Sphinx](http://www.sphinx-doc.org/en/master/) and can be found inside the docs/build/html directory.
+The documentation is built with [Sphinx](http://www.sphinx-doc.org/en/master/) and can be found [here](https://sse-platform.readthedocs.io).
 
 #### Building the Docs yourself
 
