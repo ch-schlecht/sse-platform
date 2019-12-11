@@ -17,7 +17,7 @@ from main import make_app
 def setup_util(request):
     def _setup_util():  # this member function is called when setup_util() is explicitely called (used to reproduce init state)
         if not os.path.isdir("modules/test"):
-            os.mkdir("modules/test")  # generate test module
+            os.makedirs("modules/test")  # generate test module
         with open("modules/test/config.json", "w") as fp:  # generate test config
             json.dump({"test": "confirm"}, fp)
 
@@ -28,7 +28,7 @@ def setup_util(request):
     request.addfinalizer(clean)
 
     if not os.path.isdir("modules/test"):
-        os.mkdir("modules/test")  # generate test module
+        os.makedirs("modules/test")  # generate test module
     with open("modules/test/config.json", "w") as fp:  # generate test config
         json.dump({"test": "confirm"}, fp)
 
