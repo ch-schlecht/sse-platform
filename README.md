@@ -7,17 +7,12 @@ Platform to handle various modules of SoServ research project
 
 ## Installation
 
-In order to be able to run this software, some modules are required to be installed:
+In order to be able to run this software, some modules are required to be installed, which are specified in requirements.txt. Install the dependencies by executing:
 
-- Tornado:
 ```sh
-$ pip install tornado
+$ pip install -r requirements.txt
 ```
 
-- PyGithub:
-```sh
-$ pip install pygithub
-```
 
 ## Running the platform
 
