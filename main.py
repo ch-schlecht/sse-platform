@@ -2,6 +2,7 @@ import tornado.ioloop
 import tornado.web
 import importlib
 import sys
+import json
 from CONSTANTS import MODULE_PACKAGE
 from github_access import list_modules, clone
 from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config, determine_free_port
@@ -141,7 +142,9 @@ class ExecutionHandler(tornado.web.RequestHandler):
                 # starting the module application
                 # TODO consider ssl (or use global ssl certs from platform?)
                 # TODO maybe wrap in try/except to suggest succes to user (for now just returns True)
-                module_config = get_config_path(module_to_start)
+                module_config_path = get_config_path(module_to_start)
+                with open(module_config_path) as json_file:
+                    module_config = json.load(json_file)
                 module.apply_config(module_config)   # function implemented by module
                 module_app = module.make_app()  # function implemented by module
 
