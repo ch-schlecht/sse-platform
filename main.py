@@ -3,6 +3,8 @@ import tornado.web
 import importlib
 import sys
 import json
+import argparse
+import ssl
 from CONSTANTS import MODULE_PACKAGE
 from github_access import list_modules, clone
 from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config, determine_free_port
@@ -204,8 +206,27 @@ def make_app():
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--config", type=str, help="path to config file")
+    args = parser.parse_args()
+
+    ssl_ctx = None
+
+    if args.config:
+        config = json.load(open(args.config))
+        if ('ssl_cert' in config) and ('ssl_key' in config):
+            ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            ssl_ctx.load_cert_chain(config['ssl_cert'], config['ssl_key'])
+        else:
+            print('missing ssl_cert or ssl_key in the config or an error occured when reading the file')
+            sys.exit(-1)
+    else:
+        print('config not supplied or an error occured when reading the file')
+        sys.exit(-1)
+
+
     app = make_app()
-    server = tornado.httpserver.HTTPServer(app)
+    server = tornado.httpserver.HTTPServer(app, ssl_options=ssl_ctx)
     servers['platform'] = server
     server.listen(8888)
     tornado.ioloop.IOLoop.current().start()

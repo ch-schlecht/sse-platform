@@ -16,10 +16,10 @@ $ pip install -r requirements.txt
 
 ## Running the platform
 
-To run this API, simply execute the following command:
+To run this API, you will need an SSL Certificate and the corrensponding SSL key. Those artifacts need to be supplied via config (in JSON format). An example config is present in the repo. To run the platform, execute the following command:
 
 ```sh
-$ python3 main.py
+$ python3 main.py -c path/to/config.json
 ```
 
 ## Documentation

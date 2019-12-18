@@ -1,0 +1,4 @@
+{
+    "ssl_cert": "path/to/ssl/cert.crt",
+    "ssl_key": "path/to/ssl/key.key"
+}
