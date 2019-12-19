@@ -40,7 +40,7 @@ def test_installed_modules(setup_util):
 
 
 def test_get_config_path(setup_util):
-    assert "modules/test/config.json" == get_config_path("test")
+    assert os.path.join("modules", "test", "config.json") == get_config_path("test")
 
 
 def test_load_config(setup_util):
