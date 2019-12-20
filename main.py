@@ -7,10 +7,11 @@ import argparse
 import ssl
 from CONSTANTS import MODULE_PACKAGE
 from github_access import list_modules, clone
-from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config, determine_free_port
-
+from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config, \
+    determine_free_port
 
 servers = {}
+server_services = {}
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -57,7 +58,8 @@ class ModuleHandler(tornado.web.RequestHandler):
             self.write({'type': 'list_installed_modules',
                         'installed_modules': modules})
         elif slug == "download":  # download module given by query param 'name'
-            module_to_download = self.get_argument('module_name', None)  # TODO handle input of wrong module name (BaseModule?)
+            module_to_download = self.get_argument('module_name',
+                                                   None)  # TODO handle input of wrong module name (BaseModule?)
             print("Installing Module: " + module_to_download)
             success = clone(module_to_download)  # download module
             self.write({'type': 'installation_response',
@@ -132,7 +134,7 @@ class ExecutionHandler(tornado.web.RequestHandler):
                 stop a module
 
         """
-
+        data = {}
         if slug == "start":
             module_to_start = self.get_argument("module_name", None)
             if module_to_start not in servers:
@@ -144,15 +146,29 @@ class ExecutionHandler(tornado.web.RequestHandler):
                 # starting the module application
                 # TODO consider ssl (or use global ssl certs from platform?)
                 # TODO maybe wrap in try/except to suggest succes to user (for now just returns True)
+                module_config = get_config_path(module_to_start)
+                module.apply_config(module_config)  # function implemented by module
                 module_config_path = get_config_path(module_to_start)
                 with open(module_config_path) as json_file:
                     module_config = json.load(json_file)
                 module.apply_config(module_config)   # function implemented by module
                 module_app = module.make_app()  # function implemented by module
 
-                module_server = tornado.httpserver.HTTPServer(module_app, no_keep_alive=True)  # need no-keep-alive to be able to stop server
-                servers[module_to_start] = module_server
+                module_server = tornado.httpserver.HTTPServer(module_app,
+                                                              no_keep_alive=True)  # need no-keep-alive to be able to stop server
                 port = determine_free_port()
+
+                servers[module_to_start] = module_server
+
+                # set services
+                if hasattr(module, 'get_services') and callable(getattr(module, 'get_services')):
+                    ii = module.get_services()
+                    server_services[module_to_start] = {"port": port, "service": ii}
+
+                else:
+                    server_services[module_to_start] = {"port": port, "service": {}}
+
+
                 module_server.listen(port)
                 self.write({'type': 'starting_response',
                             'module': module_to_start,
@@ -167,6 +183,20 @@ class ExecutionHandler(tornado.web.RequestHandler):
         elif slug == "stop":
             module_to_stop = self.get_argument("module_name", None)
             shutdown_module(module_to_stop)
+        elif slug == "running":
+
+            # show running things, and its config
+            for i in server_services:
+                print(i)
+
+                data['server_services'] = server_services
+
+        self.render('templates/exe.html', data=data)
+
+class CommunicationHandler(tornado.web.RequestHandler):
+
+    def post(self):
+        print('getsome_shit')
 
 
 def shutdown_module(module_name):
@@ -185,6 +215,7 @@ def shutdown_module(module_name):
         server = servers[module_name]
         server.stop()  # stop the corresponding server, note: after calling stop, requests in progress will still continue
         del servers[module_name]
+        del server_services[module_name]
 
 
 def make_app():
@@ -228,5 +259,6 @@ if __name__ == '__main__':
     app = make_app()
     server = tornado.httpserver.HTTPServer(app, ssl_options=ssl_ctx)
     servers['platform'] = server
+    server_services['platform'] = {}
     server.listen(8888)
     tornado.ioloop.IOLoop.current().start()
