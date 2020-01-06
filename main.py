@@ -7,13 +7,37 @@ import argparse
 import ssl
 from CONSTANTS import MODULE_PACKAGE
 from github_access import list_modules, clone
-from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config, determine_free_port
+from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config, determine_free_port, User
 
 
 servers = {}
 
+class BaseHandler(tornado.web.RequestHandler):
+    """
+    BaseHandler to be inherited from by the other Handlers
+    Implements functionality to authenticate the user based on its token
+    """
 
-class MainHandler(tornado.web.RequestHandler):
+    # use prepare instead of get_current_user because prepare can be async
+    def prepare(self):
+        """
+        Checks for the access token in the Authorization header.
+        If it is present and can be associated with a user account, self.current_user
+        will be overridden, meaning the user is authenticated.
+        If not present or not associated with a user, self.current_user will be
+        set to None, meaning no authentication is granted
+        """
+
+        if "Authorization" in self.request.headers:
+            token = self.request.headers["Authorization"]
+            # TODO validate the token in the db and query the user, if no validation: als set current_user None
+            self.current_user = User(1, "dummy@mail.de", "dummy", "user")  # for now set a dummy as authenticated user
+        else:
+            self.current_user = None
+
+
+
+class MainHandler(BaseHandler):
     """
     Serves the Frontend
 
@@ -24,11 +48,17 @@ class MainHandler(tornado.web.RequestHandler):
         GET request for the index.html page
 
         """
+        if self.current_user:
+            self.render("index.html")
+        else:
+            self.set_status(401)
+            self.write({"status": 401,
+                        "reason": "no_token",
+                        "redirect_suggestion": "/login"})
 
-        self.render("index.html")
 
 
-class ModuleHandler(tornado.web.RequestHandler):
+class ModuleHandler(BaseHandler):
     """
     Handles module architecture
 
@@ -77,7 +107,7 @@ class ModuleHandler(tornado.web.RequestHandler):
                         'success': success})
 
 
-class ConfigHandler(tornado.web.RequestHandler):
+class ConfigHandler(BaseHandler):
     """
     Handles configs of modules
 
@@ -115,7 +145,7 @@ class ConfigHandler(tornado.web.RequestHandler):
             write_config(config_path, new_config)
 
 
-class ExecutionHandler(tornado.web.RequestHandler):
+class ExecutionHandler(BaseHandler):
     """
     handles execution and stopping of modules
 
@@ -167,6 +197,60 @@ class ExecutionHandler(tornado.web.RequestHandler):
         elif slug == "stop":
             module_to_stop = self.get_argument("module_name", None)
             shutdown_module(module_to_stop)
+
+
+class LoginHandler(BaseHandler):
+    """
+
+    """
+
+    def get(self):
+        pass
+        # TODO maybe render a login.html (if it is not a web frontend, it simply shouldnt call get)
+
+    def post(self):
+        # TODO check for self.current_user, if already set, user is authenticated and can be redirected to MainHandler
+        try:
+            email = self.get_argument("email")
+            password = self.get_argument("password")
+
+            # TODO validate the user credentials, create an access token, save it and return it
+        except MissingArgumentError:
+            self.set_status(400)
+            self.write({"status": 400,
+                        "reason": "missing_argument",
+                        "redirect_suggestion": "/login"})
+            self.flush()
+
+class RegisterHandler(BaseHandler):
+    """
+
+    """
+
+    def get(self):
+        pass
+        # TODO maybe render a create.html (if it is not a web frontend, it simply shouldnt call get)
+
+    def post(self):
+        try:
+            email = self.get_argument("email")
+            nickname = self.get_argument("nickname")
+            unhashed_password = self.get_argument("password")
+
+            hashed_password = await tornado.ioloop.IOLoop.current().run_in_executor(
+                None,
+                bcrypt.hashpw,
+                tornado.escape.utf8(unhashed_password),
+                bcrypt.gensalt(),
+            )
+
+            # TODO save this user to db and also create an access token, save it and return it
+        except MissingArgumentError:
+            self.set_status(400)
+            self.write({"status": 400,
+                        "reason": "missing_argument",
+                        "redirect_suggestion": "/register"})
+            self.flush()
 
 
 def shutdown_module(module_name):
