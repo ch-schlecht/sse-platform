@@ -2,19 +2,43 @@
 var baseUrl = 'http://localhost:8888';
 
 var $modules = $('#modules');
-var $modulesInstalled = $('#modulesInstalled');
+var modulesInstalledList = [];
 
 function addModuleInstalled(module) {
-  $modulesInstalled.append('<li><p><strong>' + module + '</strong></p></li>');
+  if ($('.download').attr('data-id') == module) {
+    $('[data-id=' + module + ']').remove();
+  } else {
+    $modules.append('<li id=' + module + '><p><strong>' + module + '</strong></p></li>');
+  }
 }
 
 function addModuleAvailable(module) {
-  $modules.append('<li><p><strong>' + module + '</strong></p>' +
-                  '<button data-id=' + module + ' class=download> Download </button></li>');
+  if (modulesInstalledList.indexOf(module) == -1) {
+    $modules.append('<li id=' + module + '><p><strong>' + module + '</strong></p>' +
+                    '<button data-id=' + module + ' class=download> Download </button></li>');
+  }
 }
 
 $(function () {
+      $.ajax({
+        type: 'GET',
+        url: baseUrl + '/modules/list_installed',
+        dataType: 'json',
+        success: function (modules) {
+          console.log(modules);
+          $.each(modules.installed_modules, function (i, module) {
+            modulesInstalledList.push(module);
+            addModuleInstalled(module);
+          });
+        },
 
+        error: function (xhr, status, error) {
+          alert('error loading installed modules');
+          console.log(error);
+          console.log(status);
+          console.log(xhr);
+        },
+      });
       $.ajax({
         type: 'GET',
         url: baseUrl + '/modules/list_available',
@@ -33,25 +57,6 @@ $(function () {
           console.log(xhr);
         },
       });
-
-      $.ajax({
-        type: 'GET',
-        url: baseUrl + '/modules/list_installed',
-        dataType: 'json',
-        success: function (modules) {
-          console.log(modules);
-          $.each(modules.installed_modules, function (i, module) {
-            addModuleInstalled(module);
-          });
-        },
-
-        error: function (xhr, status, error) {
-          alert('error loading installed modules');
-          console.log(error);
-          console.log(status);
-          console.log(xhr);
-        },
-      });
     });
 
 $modules.delegate('.download', 'click', function () {
@@ -62,6 +67,7 @@ $modules.delegate('.download', 'click', function () {
       dataType: 'json',
       success: function (module) {
         console.log(module);
+        modulesInstalledList.push(module);
         addModuleInstalled(module.module);
       },
 
