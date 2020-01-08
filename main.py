@@ -199,7 +199,8 @@ def make_app():
         (r"/modules/([a-zA-Z\-0-9\.:,_]+)", ModuleHandler),
         (r"/configs/([a-zA-Z\-0-9\.:,_]+)", ConfigHandler),
         (r"/execution/([a-zA-Z\-0-9\.:,_]+)", ExecutionHandler),
-        (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"})
+        (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"}),
+        (r"/javascripts/(.*)", tornado.web.StaticFileHandler, {"path": "./javascripts/"})
     ])
 
 
