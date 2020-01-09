@@ -25,3 +25,7 @@ ul li .edit {
 ul li.edit .edit{
     display: initial;
 }
+
+ul li.edit .noedit {
+  display: none;
+}
