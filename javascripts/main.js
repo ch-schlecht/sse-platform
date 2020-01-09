@@ -1,6 +1,5 @@
 
 var baseUrl = 'http://localhost:8888';
-
 var $modules = $('#modules');
 var modulesInstalledList = [];
 var modulesTemplate =    '' +
@@ -8,10 +7,23 @@ var modulesTemplate =    '' +
             '<p><strong>{{name}}</strong></p>' +
             '<button data-id={{name}} class=download>Download</button>' +
             '<button id={{name}} class=uninstall>Uninstall</button>' +
+            '<button id={{name}} class=config>Config</button>' +
+            '<button id={{name}} class=start>Run</button>' +
+            '<button id={{name}} class=stop>Stop</button>' +
           '</li>';
+var $body = $('body');
+
+$(document).on({
+    ajaxStart: function () { $body.addClass('loading');    },
+
+    ajaxStop: function () { $body.removeClass('loading');  },
+  });
 
 function addModuleInstalled(module) {
   $modules.append(Mustache.render(modulesTemplate, { name: '' + module + '' }));
+  var $mod = $('[data-id=' + module + ']');
+  var $li = $mod.closest('li');
+  $li.addClass('edit');
   $('[data-id=' + module + ']').addClass('noedit');
   $('[id=' + module + ']').addClass('edit');
 }
@@ -21,6 +33,9 @@ function addModuleAvailable(module) {
     $modules.append(Mustache.render(modulesTemplate, { name: '' + module + '' }));
     $('[data-id=' + module + ']').addClass('noedit');
     $('[id=' + module + ']').addClass('edit');
+
+    //get element with module id and start class
+    //$('#' + module + '.start').addClass('running');
   }
 }
 
@@ -115,10 +130,72 @@ $modules.delegate('.uninstall', 'click', function () {
       },
 
       error: function (xhr, status, error) {
-        alert('error downloading module');
+        alert('error uninstalling module');
         console.log(error);
         console.log(status);
         console.log(xhr);
       },
     });
   });
+
+$modules.delegate('.start', 'click', function () {
+
+      $.ajax({
+        type: 'GET',
+        url: baseUrl + '/execution/start?module_name=' + $(this).attr('id'),
+        dataType: 'json',
+        success: function (module) {
+          console.log('started');
+          console.log(module.reason);
+
+          $(this).addClass('running');
+        },
+
+        error: function (xhr, status, error) {
+          alert('error starting module');
+          console.log(error);
+          console.log(status);
+          console.log(xhr);
+        },
+      });
+    });
+
+$modules.delegate('.stop', 'click', function () {
+
+      $.ajax({
+        type: 'GET',
+        url: baseUrl + '/execution/stop?module_name=' + $(this).attr('id'),
+        dataType: 'json',
+        success: function (module) {
+          alert('stopped');
+
+          $('#' + $(this).attr('id') + '.start').removeClass('running');
+        },
+
+        error: function (xhr, status, error) {
+          alert('error stopping module');
+          console.log(error);
+          console.log(status);
+          console.log(xhr);
+        },
+      });
+    });
+
+$modules.delegate('.config', 'click', function () {
+      var $li = $(this).closest('li');
+      $.ajax({
+        type: 'GET',
+        url: baseUrl + '/configs/view?module_name=' + $(this).attr('id'),
+        dataType: 'json',
+        success: function (module) {
+          console.log(module.config);
+        },
+
+        error: function (xhr, status, error) {
+          alert('error loading config of module');
+          console.log(error);
+          console.log(status);
+          console.log(xhr);
+        },
+      });
+    });
