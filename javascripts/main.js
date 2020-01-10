@@ -3,7 +3,7 @@ var baseUrl = 'http://localhost:8888';
 var $modules = $('#modules');
 var modulesInstalledList = [];
 var modulesTemplate =    '' +
-       '<li>' +
+       '<li name={{name}}>' +
             '<p><strong>{{name}}</strong></p>' +
             '<button data-id={{name}} class=download>Download</button>' +
             '<button id={{name}} class=uninstall>Uninstall</button>' +
@@ -57,7 +57,6 @@ $(function () {
         success: function (modules) {
           $.each(modules.installed_modules, function (i, module) {
             modulesInstalledList.push(module);
-            console.log(module);
             addModuleInstalled(module);
           });
 
@@ -70,6 +69,7 @@ $(function () {
           console.log(xhr);
         },
       });
+
       $.ajax({
         type: 'GET',
         url: baseUrl + '/modules/list_available',
@@ -91,14 +91,11 @@ $(function () {
 
 $modules.delegate('.download', 'click', function () {
     var $li = $(this).closest('li');
-
-    console.log('clicked');
     $.ajax({
       type: 'GET',
       url: baseUrl + '/modules/download?module_name=' + $(this).attr('data-id'),
       dataType: 'json',
       success: function (module) {
-        console.log(module.module);
         modulesInstalledList.push(module.module);
         $li.addClass('edit');
       },
@@ -113,14 +110,12 @@ $modules.delegate('.download', 'click', function () {
   });
 
 $modules.delegate('.uninstall', 'click', function () {
-    console.log('clicked uninstall');
     var $li = $(this).closest('li');
     $.ajax({
       type: 'GET',
       url: baseUrl + '/modules/uninstall?module_name=' + $(this).attr('id'),
       dataType: 'json',
       success: function (module) {
-        console.log(module.module);
         var index = modulesInstalledList.indexOf(module.module);
         if (index > -1) {
           modulesInstalledList.splice(index, 1);
@@ -139,7 +134,7 @@ $modules.delegate('.uninstall', 'click', function () {
   });
 
 $modules.delegate('.start', 'click', function () {
-
+      $(this).addClass('running');
       $.ajax({
         type: 'GET',
         url: baseUrl + '/execution/start?module_name=' + $(this).attr('id'),
@@ -161,7 +156,7 @@ $modules.delegate('.start', 'click', function () {
     });
 
 $modules.delegate('.stop', 'click', function () {
-
+      $('#' + $(this).attr('id') + '.start').removeClass('running');
       $.ajax({
         type: 'GET',
         url: baseUrl + '/execution/stop?module_name=' + $(this).attr('id'),
@@ -185,10 +180,16 @@ $modules.delegate('.config', 'click', function () {
       var $li = $(this).closest('li');
       $.ajax({
         type: 'GET',
-        url: baseUrl + '/configs/view?module_name=' + $(this).attr('id'),
+        url: baseUrl + '/configs/view?module_name=' + $li.attr('name'),
         dataType: 'json',
         success: function (module) {
+          $('.bg-modal').css('display', 'flex');
+          $('#save').addClass($li.attr('name'));
           console.log(module.config);
+
+          //var obj = JSON.parse(module.config);
+          var pretty = JSON.stringify(module.config, undefined, 4);
+          $('#config-area').val(pretty);
         },
 
         error: function (xhr, status, error) {
@@ -199,3 +200,39 @@ $modules.delegate('.config', 'click', function () {
         },
       });
     });
+
+$body.delegate('.close', 'click', function () {
+      $('.bg-modal').css('display', 'none');
+      $('#config-area').val('');
+    });
+
+$body.delegate('#save', 'click', function () {
+
+      prettyPrint();
+      config = $('#config-area').val();
+      console.log(config);
+      $.ajax({
+        type: 'POST',
+        url: baseUrl + '/configs/update?module_name=' + $(this).attr('class'),
+        data: config,
+        success: function (module) {
+          console.log(module);
+          $('.bg-modal').css('display', 'none');
+          $('#config-area').val('');
+        },
+
+        error: function (xhr, status, error) {
+          alert('error saving config of module, check syntax');
+          console.log(error);
+          console.log(status);
+          console.log(xhr);
+        },
+      });
+    });
+
+function prettyPrint() {
+  var $ugly = $('#config-area').val();
+  var obj = JSON.parse($ugly);
+  var pretty = JSON.stringify(obj, undefined, 4);
+  $('#config-area').val(pretty);
+}
