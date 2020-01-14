@@ -1,22 +1,25 @@
 import tornado.ioloop
 import tornado.web
+import tornado.locks
+import bcrypt
 import importlib
 import sys
 import json
 import argparse
 import ssl
-from CONSTANTS import MODULE_PACKAGE
+import CONSTANTS
+import os
+from CONSTANTS import MODULE_PACKAGE,CONFIG_PATH
 from github_access import list_modules, clone
-<<<<<<< HEAD
-from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config, determine_free_port, User
-
-=======
 from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config, \
-    determine_free_port
->>>>>>> 1c1696b2b093ce160de2fbe70304cd42e68ced33
+    determine_free_port, User
+from db_access import initialize_db, execute, query, queryone, user_exists, NoResultError
+from token_cache import token_cache
+from base64 import b64encode
 
 servers = {}
 server_services = {}
+dev_mode = False
 
 class BaseHandler(tornado.web.RequestHandler):
     """
@@ -34,12 +37,18 @@ class BaseHandler(tornado.web.RequestHandler):
         set to None, meaning no authentication is granted
         """
 
-        if "Authorization" in self.request.headers:
-            token = self.request.headers["Authorization"]
-            # TODO validate the token in the db and query the user, if no validation: als set current_user None
-            self.current_user = User(1, "dummy@mail.de", "dummy", "user")  # for now set a dummy as authenticated user
+        if dev_mode is False:
+            if "Authorization" in self.request.headers:
+                token = self.request.headers["Authorization"]
+                cached_user = token_cache().get(token)
+                if cached_user is not None:
+                    self.current_user = cached_user["user_id"]
+                else:
+                    self.current_user = None
+            else:
+                self.current_user = None
         else:
-            self.current_user = None
+            self.current_user = -1  # user_id -1 indicates developer mode
 
 
 
@@ -60,8 +69,7 @@ class MainHandler(BaseHandler):
             self.set_status(401)
             self.write({"status": 401,
                         "reason": "no_token",
-                        "redirect_suggestion": "/login"})
-
+                        "redirect_suggestions": ["/login"]})
 
 
 class ModuleHandler(BaseHandler):
@@ -88,30 +96,51 @@ class ModuleHandler(BaseHandler):
             modules = list_modules()
             self.write({'type': 'list_available_modules',
                         'modules': modules})
+
         elif slug == "list_installed":  # list istalled modules
-            modules = list_installed_modules()
-            self.write({'type': 'list_installed_modules',
-                        'installed_modules': modules})
+            if self.current_user:
+                modules = list_installed_modules()
+                self.write({'type': 'list_installed_modules',
+                            'installed_modules': modules})
+            else:
+                self.set_status(401)
+                self.write({"status": 401,
+                            "reason": "no_token",
+                            "redirect_suggestions": ["/login"]})
+
         elif slug == "download":  # download module given by query param 'name'
-            module_to_download = self.get_argument('module_name',
-                                                   None)  # TODO handle input of wrong module name (BaseModule?)
-            print("Installing Module: " + module_to_download)
-            success = clone(module_to_download)  # download module
-            self.write({'type': 'installation_response',
-                        'module': module_to_download,
-                        'success': success})
+            if self.current_user:
+                module_to_download = self.get_argument('module_name',
+                                                       None)  # TODO handle input of wrong module name (BaseModule?)
+                print("Installing Module: " + module_to_download)
+                success = clone(module_to_download)  # download module
+                self.write({'type': 'installation_response',
+                            'module': module_to_download,
+                            'success': success})
+            else:
+                self.set_status(401)
+                self.write({"status": 401,
+                            "reason": "no_token",
+                            "redirect_suggestions": ["/login"]})
+
         elif slug == "uninstall":  # uninstall module given by query param 'name'
-            module_to_uninstall = self.get_argument('module_name', None)
+            if self.current_user:
+                module_to_uninstall = self.get_argument('module_name', None)
 
-            # check the module is not running, and if, stop it before uninstalling
-            if module_to_uninstall in servers:
-                shutdown_module(module_to_uninstall)
+                # check the module is not running, and if, stop it before uninstalling
+                if module_to_uninstall in servers:
+                    shutdown_module(module_to_uninstall)
 
-            print('Uninstalling Module: ' + module_to_uninstall)
-            success = remove_module_files(module_to_uninstall)
-            self.write({'type': 'uninstallation_response',
-                        'module': module_to_uninstall,
-                        'success': success})
+                print('Uninstalling Module: ' + module_to_uninstall)
+                success = remove_module_files(module_to_uninstall)
+                self.write({'type': 'uninstallation_response',
+                            'module': module_to_uninstall,
+                            'success': success})
+            else:
+                self.set_status(401)
+                self.write({"status": 401,
+                            "reason": "no_token",
+                            "redirect_suggestions": ["/login"]})
 
 
 class ConfigHandler(BaseHandler):
@@ -127,14 +156,19 @@ class ConfigHandler(BaseHandler):
                 get the config of the module given by module_name
 
         """
-
-        if slug == "view":
-            module = self.get_argument("module_name", None)  # TODO handle input of wrong module name
-            config_path = get_config_path(module)
-            config = load_config(config_path)
-            self.write({'type': 'view_config',
-                        'module': module,
-                        'config': config})
+        if self.current_user:
+            if slug == "view":
+                module = self.get_argument("module_name", None)  # TODO handle input of wrong module name
+                config_path = get_config_path(module)
+                config = load_config(config_path)
+                self.write({'type': 'view_config',
+                            'module': module,
+                            'config': config})
+        else:
+            self.set_status(401)
+            self.write({"status": 401,
+                        "reason": "no_token",
+                        "redirect_suggestions": ["/login"]})
 
     def post(self, slug):
         """
@@ -144,12 +178,17 @@ class ConfigHandler(BaseHandler):
                 changes the config of the module given by module_name to the json in the http body
 
         """
-
-        if slug == "update":
-            module = self.get_argument("module_name", None)  # TODO handle input of wrong module name
-            config_path = get_config_path(module)
-            new_config = tornado.escape.json_decode(self.request.body)
-            write_config(config_path, new_config)
+        if self.current_user:
+            if slug == "update":
+                module = self.get_argument("module_name", None)  # TODO handle input of wrong module name
+                config_path = get_config_path(module)
+                new_config = tornado.escape.json_decode(self.request.body)
+                write_config(config_path, new_config)
+        else:
+            self.set_status(401)
+            self.write({"status": 401,
+                        "reason": "no_token",
+                        "redirect_suggestions": ["/login"]})
 
 
 class ExecutionHandler(BaseHandler):
@@ -169,64 +208,72 @@ class ExecutionHandler(BaseHandler):
                 stop a module
 
         """
-        data = {}
-        if slug == "start":
-            module_to_start = self.get_argument("module_name", None)
-            if module_to_start not in servers:
-                spec = importlib.util.find_spec(".main", MODULE_PACKAGE + module_to_start)
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[module_to_start] = module
-                spec.loader.exec_module(module)
+        if self.current_user:
+            data = {}
+            if slug == "start":
+                module_to_start = self.get_argument("module_name", None)
+                if module_to_start not in servers:
+                    spec = importlib.util.find_spec(".main", MODULE_PACKAGE + module_to_start)
+                    module = importlib.util.module_from_spec(spec)
+                    sys.modules[module_to_start] = module
+                    spec.loader.exec_module(module)
 
-                # starting the module application
-                # TODO consider ssl (or use global ssl certs from platform?)
-                # TODO maybe wrap in try/except to suggest succes to user (for now just returns True)
-                module_config = get_config_path(module_to_start)
-                module.apply_config(module_config)  # function implemented by module
-                module_config_path = get_config_path(module_to_start)
-                with open(module_config_path) as json_file:
-                    module_config = json.load(json_file)
-                module.apply_config(module_config)   # function implemented by module
-                module_app = module.make_app()  # function implemented by module
+                    # starting the module application
+                    # TODO consider ssl (or use global ssl certs from platform?)
+                    # TODO maybe wrap in try/except to suggest succes to user (for now just returns True)
+                    module_config = get_config_path(module_to_start)
+                    module.apply_config(module_config)  # function implemented by module
+                    module_config_path = get_config_path(module_to_start)
+                    with open(module_config_path) as json_file:
+                        module_config = json.load(json_file)
+                    module.apply_config(module_config)   # function implemented by module
+                    module_app = module.make_app()  # function implemented by module
 
-                module_server = tornado.httpserver.HTTPServer(module_app,
-                                                              no_keep_alive=True)  # need no-keep-alive to be able to stop server
-                port = determine_free_port()
+                    module_server = tornado.httpserver.HTTPServer(module_app,
+                                                                  no_keep_alive=True)  # need no-keep-alive to be able to stop server
+                    port = determine_free_port()
 
-                servers[module_to_start] = module_server
+                    servers[module_to_start] = module_server
 
-                # set services
-                if hasattr(module, 'get_services') and callable(getattr(module, 'get_services')):
-                    ii = module.get_services()
-                    server_services[module_to_start] = {"port": port, "service": ii}
+                    # set services
+                    if hasattr(module, 'get_services') and callable(getattr(module, 'get_services')):
+                        ii = module.get_services()
+                        server_services[module_to_start] = {"port": port, "service": ii}
 
+                    else:
+                        server_services[module_to_start] = {"port": port, "service": {}}
+
+
+                    module_server.listen(port)
+                    self.write({'type': 'starting_response',
+                                'module': module_to_start,
+                                'success': True,
+                                'port': port})
                 else:
-                    server_services[module_to_start] = {"port": port, "service": {}}
+                    print("module already running, starting denied. stop module first")
+                    self.write({'type': 'starting_response',
+                                'module': module_to_start,
+                                'success': False,
+                                'reason': 'already_running'})
+            elif slug == "stop":
+                module_to_stop = self.get_argument("module_name", None)
+                shutdown_module(module_to_stop)
+            elif slug == "running":
 
+                # show running things, and its config
+                for i in server_services:
+                    print(i)
 
-                module_server.listen(port)
-                self.write({'type': 'starting_response',
-                            'module': module_to_start,
-                            'success': True,
-                            'port': port})
-            else:
-                print("module already running, starting denied. stop module first")
-                self.write({'type': 'starting_response',
-                            'module': module_to_start,
-                            'success': False,
-                            'reason': 'already_running'})
-        elif slug == "stop":
-            module_to_stop = self.get_argument("module_name", None)
-            shutdown_module(module_to_stop)
-        elif slug == "running":
+                    data['server_services'] = server_services
 
-            # show running things, and its config
-            for i in server_services:
-                print(i)
+            self.render('templates/exe.html', data=data)
 
-                data['server_services'] = server_services
+        else:
+            self.set_status(401)
+            self.write({"status": 401,
+                        "reason": "no_token",
+                        "redirect_suggestions": ["/login"]})
 
-        self.render('templates/exe.html', data=data)
 
 class CommunicationHandler(tornado.web.RequestHandler):
 
@@ -243,19 +290,51 @@ class LoginHandler(BaseHandler):
         pass
         # TODO maybe render a login.html (if it is not a web frontend, it simply shouldnt call get)
 
-    def post(self):
+    async def post(self):
         # TODO check for self.current_user, if already set, user is authenticated and can be redirected to MainHandler
-        try:
-            email = self.get_argument("email")
+        #try:
+            email = self.get_argument("email", "")
+            nickname = self.get_argument("nickname", "")
             password = self.get_argument("password")
 
-            # TODO validate the user credentials, create an access token, save it and return it
-        except MissingArgumentError:
-            self.set_status(400)
-            self.write({"status": 400,
-                        "reason": "missing_argument",
-                        "redirect_suggestion": "/login"})
-            self.flush()
+            try:
+                user = await queryone("SELECT * FROM users WHERE email = %s OR name = %s", email, nickname)
+            except NoResultError:
+                self.set_status(409)
+                self.write({"status": 409,
+                            "reason": "user_not_found",
+                            "redirect_suggestions": ["/login", "/register"]})
+                self.flush()
+
+            password_validated = await tornado.ioloop.IOLoop.current().run_in_executor(
+                None,
+                bcrypt.checkpw,
+                tornado.escape.utf8(password),
+                tornado.escape.utf8(user['hashed_password'])
+            )
+
+            if password_validated:
+                access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
+
+                token_cache().insert(access_token, user['id'])
+
+
+                self.set_status(200)
+                self.write({"status": 200,
+                            "success": True,
+                            "access_token": access_token})
+            else:
+                self.status(401)
+                self.write({"status": 401,
+                            "success": False,
+                            "reason": "password_validation_failed",
+                            "redirect_suggestions": ["/login", "/register"]})
+        #except MissingArgumentError:
+        #    self.set_status(400)
+        #    self.write({"status": 400,
+        #                "reason": "missing_argument",
+        #                "redirect_suggestions": "/login"})
+        #    self.flush()
 
 class RegisterHandler(BaseHandler):
     """
@@ -263,11 +342,13 @@ class RegisterHandler(BaseHandler):
     """
 
     def get(self):
-        pass
+        self.set_status(501)
+        self.write({"status": 501,
+                    "reason": "not_yet_implemented"})
         # TODO maybe render a create.html (if it is not a web frontend, it simply shouldnt call get)
 
-    def post(self):
-        try:
+    async def post(self):
+        #try:
             email = self.get_argument("email")
             nickname = self.get_argument("nickname")
             unhashed_password = self.get_argument("password")
@@ -279,13 +360,34 @@ class RegisterHandler(BaseHandler):
                 bcrypt.gensalt(),
             )
 
-            # TODO save this user to db and also create an access token, save it and return it
-        except MissingArgumentError:
-            self.set_status(400)
-            self.write({"status": 400,
-                        "reason": "missing_argument",
-                        "redirect_suggestion": "/register"})
-            self.flush()
+            if (await user_exists(nickname)):
+                self.set_status(409)
+                self.write({"status": 409,
+                            "reason": "username_already_exists",
+                            "redirect_suggestions": ["/login"]})
+                self.flush()
+            else:
+                result = await queryone("INSERT INTO users (email, name, hashed_password, role) \
+                                VALUES (%s, %s, %s, %s) RETURNING id",
+                                email, nickname, tornado.escape.to_unicode(hashed_password), "user")
+                user_id = result['id']
+
+                access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
+
+                token_cache().insert(access_token, user_id)
+
+
+                self.set_status(200)
+                self.write({"status": 200,
+                            "success": True,
+                            "access_token": access_token})
+
+        #except MissingArgumentError:
+        #    self.set_status(400)
+        #    self.write({"status": 400,
+        #                "reason": "missing_argument",
+        #                "redirect_suggestions": "/register"})
+#            self.flush()
 
 
 def shutdown_module(module_name):
@@ -321,19 +423,31 @@ def make_app():
         (r"/modules/([a-zA-Z\-0-9\.:,_]+)", ModuleHandler),
         (r"/configs/([a-zA-Z\-0-9\.:,_]+)", ConfigHandler),
         (r"/execution/([a-zA-Z\-0-9\.:,_]+)", ExecutionHandler),
+        (r"/register", RegisterHandler),
+        (r"/login", LoginHandler),
         (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"})
     ])
 
 
-if __name__ == '__main__':
+async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", type=str, help="path to config file")
+    parser.add_argument("--dev", help="run in dev mode (no auth needed)", action="store_true")
     args = parser.parse_args()
 
     ssl_ctx = None
 
+    if args.dev:
+        global dev_mode
+        dev_mode = True
+
     if args.config:
-        config = json.load(open(args.config))
+        with open(args.config) as json_file:
+            config = json.load(json_file)
+
+        if args.config != CONSTANTS.CONFIG_PATH:
+            CONSTANTS.CONFIG_PATH = args.config
+
         if ('ssl_cert' in config) and ('ssl_key' in config):
             ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
             ssl_ctx.load_cert_chain(config['ssl_cert'], config['ssl_key'])
@@ -344,10 +458,18 @@ if __name__ == '__main__':
         print('config not supplied or an error occured when reading the file')
         sys.exit(-1)
 
+    await initialize_db()
 
     app = make_app()
     server = tornado.httpserver.HTTPServer(app, ssl_options=ssl_ctx)
     servers['platform'] = server
     server_services['platform'] = {}
     server.listen(8888)
-    tornado.ioloop.IOLoop.current().start()
+
+    shutdown_event = tornado.locks.Event()
+    await shutdown_event.wait()
+
+
+
+if __name__ == '__main__':
+    tornado.ioloop.IOLoop.current().run_sync(main)
