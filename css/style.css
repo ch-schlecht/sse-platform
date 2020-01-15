@@ -35,11 +35,21 @@ ul li.edit .noedit {
   display: none;
 }
 
-ul li.edit .running {
+ul li.edit .start.running {
   display: none;
 }
 
+ul li.edit .stop{
+  display: none;
+}
 
+ul li.edit .stop.running{
+  display: initial;
+}
+
+/**
+ * ajax loading modal with gif
+ */
 .modal {
     display:    none;
     position:   fixed;

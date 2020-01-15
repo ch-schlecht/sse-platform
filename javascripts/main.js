@@ -1,5 +1,6 @@
 
 var baseUrl = 'http://localhost:8888';
+var newTabUrl = 'http://localhost';
 var $modules = $('#modules');
 var modulesInstalledList = [];
 var modulesTemplate =    '' +
@@ -13,12 +14,22 @@ var modulesTemplate =    '' +
           '</li>';
 var $body = $('body');
 
+/**
+ * add or removes class 'loading' on ajax request
+ */
 $(document).on({
     ajaxStart: function () { $body.addClass('loading');    },
 
     ajaxStop: function () { $body.removeClass('loading');  },
   });
 
+/**
+ * addModuleInstalled - if Module is installed:
+ * add moduleTemplate to HTML and sets the ids and classes with module name
+ * add class 'edit'
+ * @param  {None} module name of the module
+ * @return {None}        None
+ */
 function addModuleInstalled(module) {
   $modules.append(Mustache.render(modulesTemplate, { name: '' + module + '' }));
   var $mod = $('[data-id=' + module + ']');
@@ -28,6 +39,12 @@ function addModuleInstalled(module) {
   $('[id=' + module + ']').addClass('edit');
 }
 
+/**
+ * addModuleAvailable - if Module is not installed
+ * add moduleTemplate to HTML and sets the ids and classes with module name
+ * @param  {None} module name of the module
+ * @return {None}        None
+ */
 function addModuleAvailable(module) {
   if (modulesInstalledList.indexOf(module) == -1) {
     $modules.append(Mustache.render(modulesTemplate, { name: '' + module + '' }));
@@ -39,16 +56,11 @@ function addModuleAvailable(module) {
   }
 }
 
-/*
-
-function removeModuleInstalled(module) {
-  if ($('.uninstall').attr('data-id') == module) {
-    $('[data-id=' + module + ']').remove();
-    var $downloadBtn = $('<button data-id=' + module + ' class=download> Download </button>');
-    $('[id=' + module + ']').append($downloadBtn);
-  }
-}
-*/
+/**
+ * on page load - get all available and installed modules
+ * add installed modules to list
+ * @return {None}  None
+ */
 $(function () {
       $.ajax({
         type: 'GET',
@@ -89,6 +101,11 @@ $(function () {
       });
     });
 
+/**
+ * on download click - download module and add it to installed-list
+ * add class 'edit'
+ * @return {None}  None
+ */
 $modules.delegate('.download', 'click', function () {
     var $li = $(this).closest('li');
     $.ajax({
@@ -109,6 +126,11 @@ $modules.delegate('.download', 'click', function () {
     });
   });
 
+/**
+ * on uninstall click - uninstall module and remove it from installed-list
+ * removes class 'edit'
+ * @return {None}  None
+ */
 $modules.delegate('.uninstall', 'click', function () {
     var $li = $(this).closest('li');
     $.ajax({
@@ -133,8 +155,16 @@ $modules.delegate('.uninstall', 'click', function () {
     });
   });
 
+/**
+ * on start click - starts module if its not already running and opens new tab
+ * add text to li:paragraph
+ * add class 'running' to buttons
+ * @return {None}  None
+ */
 $modules.delegate('.start', 'click', function () {
-      $(this).addClass('running');
+      var $li = $(this).closest('li');
+      var $start = $(this);
+      var $stop = $('#' + $(this).attr('id') + '.stop');
       $.ajax({
         type: 'GET',
         url: baseUrl + '/execution/start?module_name=' + $(this).attr('id'),
@@ -142,8 +172,24 @@ $modules.delegate('.start', 'click', function () {
         success: function (module) {
           console.log('started');
           console.log(module.reason);
+          console.log(module.port);
 
-          $(this).addClass('running');
+          if (module.reason !== 'already_running') {
+            $li.children('p').append('<span id="port"> running on port ' + module.port + '</span>');
+
+            var win = window.open('' + newTabUrl + ':' + module.port, '_blank');
+            if (win) {
+              win.focus();
+            } else {
+              alert('Please allow popups for this page.');
+            }
+
+          } else {
+            $li.children('p').append('<span id="port"> already running on a port </span>');
+          }
+
+          $start.addClass('running');
+          $stop.addClass('running');
         },
 
         error: function (xhr, status, error) {
@@ -155,16 +201,29 @@ $modules.delegate('.start', 'click', function () {
       });
     });
 
+/**
+ * on stop click - stops the running module
+ * removes id 'port' and class 'running'
+ * @return {None}  None
+ */
 $modules.delegate('.stop', 'click', function () {
+      var $stop = $(this);
+      var $start = $('#' + $(this).attr('id') + '.start');
+      var $port = $('#port');
+
+      // if ajax works this can be removed
+      $(this).removeClass('running');
       $('#' + $(this).attr('id') + '.start').removeClass('running');
+      $('#port').remove();
       $.ajax({
         type: 'GET',
         url: baseUrl + '/execution/stop?module_name=' + $(this).attr('id'),
         dataType: 'json',
         success: function (module) {
           alert('stopped');
-
-          $('#' + $(this).attr('id') + '.start').removeClass('running');
+          $stop.removeClass('running');
+          $start.removeClass('running');
+          $port.remove();
         },
 
         error: function (xhr, status, error) {
@@ -176,6 +235,14 @@ $modules.delegate('.stop', 'click', function () {
       });
     });
 
+/**
+ * on config click - loads actual config of modules
+ * displays 'bg-modal'
+ * add class 'name' to save btn
+ * convert config to JSON and display it in textarea
+ *
+ * @return {None}  None
+ */
 $modules.delegate('.config', 'click', function () {
       var $li = $(this).closest('li');
       $.ajax({
@@ -201,14 +268,31 @@ $modules.delegate('.config', 'click', function () {
       });
     });
 
+/**
+ * on close click - resets textarea and display of bg-modal
+ *
+ * @return {None}  None
+ */
 $body.delegate('.close', 'click', function () {
       $('.bg-modal').css('display', 'none');
       $('#config-area').val('');
     });
 
+/**
+ * on save click - saves content of textarea as JSON to config of module
+ * resets textarea and display of bg-modal
+ *
+ * @return {None}  None
+ */
 $body.delegate('#save', 'click', function () {
 
-      prettyPrint();
+      try {
+        prettyPrint();
+      } catch (e) {
+        alert('Config needs to be JSON.');
+        return;
+      }
+
       config = $('#config-area').val();
       console.log(config);
       $.ajax({
@@ -230,9 +314,15 @@ $body.delegate('#save', 'click', function () {
       });
     });
 
+/**
+ * prettyPrint - prints the text of 'config-area' pretty
+ *
+ * @return {None}  None
+ */
 function prettyPrint() {
   var $ugly = $('#config-area').val();
   var obj = JSON.parse($ugly);
   var pretty = JSON.stringify(obj, undefined, 4);
   $('#config-area').val(pretty);
+
 }
