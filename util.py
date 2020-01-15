@@ -109,6 +109,11 @@ def determine_free_port():
 
 
 class User():
+    """
+    model class to represent a user
+
+    """
+
     def __init__(self, uid, email, nickname, role):
         self.uid = uid
         self.email = email

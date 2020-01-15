@@ -9,17 +9,18 @@ import argparse
 import ssl
 import CONSTANTS
 import os
-from CONSTANTS import MODULE_PACKAGE,CONFIG_PATH
+from CONSTANTS import MODULE_PACKAGE
 from github_access import list_modules, clone
 from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config, \
-    determine_free_port, User
-from db_access import initialize_db, execute, query, queryone, user_exists, NoResultError
+    determine_free_port
+from db_access import initialize_db, queryone, user_exists, NoResultError
 from token_cache import token_cache
 from base64 import b64encode
 
 servers = {}
 server_services = {}
 dev_mode = False
+
 
 class BaseHandler(tornado.web.RequestHandler):
     """
@@ -32,9 +33,12 @@ class BaseHandler(tornado.web.RequestHandler):
         """
         Checks for the access token in the Authorization header.
         If it is present and can be associated with a user account, self.current_user
-        will be overridden, meaning the user is authenticated.
+        will be overridden to the user id, meaning the user is authenticated.
         If not present or not associated with a user, self.current_user will be
-        set to None, meaning no authentication is granted
+        set to None, meaning no authentication is granted.
+
+        If the server was started with the --dev flag (for dev-mode), self.current_user will be automatically set (-1 as indicator for dev).
+        This means no authentication is needed in dev mode.
         """
 
         if dev_mode is False:
@@ -49,7 +53,6 @@ class BaseHandler(tornado.web.RequestHandler):
                 self.current_user = None
         else:
             self.current_user = -1  # user_id -1 indicates developer mode
-
 
 
 class MainHandler(BaseHandler):
@@ -243,7 +246,6 @@ class ExecutionHandler(BaseHandler):
                     else:
                         server_services[module_to_start] = {"port": port, "service": {}}
 
-
                     module_server.listen(port)
                     self.write({'type': 'starting_response',
                                 'module': module_to_start,
@@ -283,7 +285,7 @@ class CommunicationHandler(tornado.web.RequestHandler):
 
 class LoginHandler(BaseHandler):
     """
-
+    Authenticate a user towards the API
     """
 
     def get(self):
@@ -291,54 +293,59 @@ class LoginHandler(BaseHandler):
         # TODO maybe render a login.html (if it is not a web frontend, it simply shouldnt call get)
 
     async def post(self):
+        """
+        POST request of /login
+
+        query param: `email`
+        query param: `nickname`
+        query param: `password`
+
+        """
         # TODO check for self.current_user, if already set, user is authenticated and can be redirected to MainHandler
-        #try:
-            email = self.get_argument("email", "")
-            nickname = self.get_argument("nickname", "")
-            password = self.get_argument("password")
 
-            try:
-                user = await queryone("SELECT * FROM users WHERE email = %s OR name = %s", email, nickname)
-            except NoResultError:
-                self.set_status(409)
-                self.write({"status": 409,
-                            "reason": "user_not_found",
-                            "redirect_suggestions": ["/login", "/register"]})
-                self.flush()
+        # TODO check if those arguments were set, if not, return 400 bad request
+        email = self.get_argument("email", "")
+        nickname = self.get_argument("nickname", "")
+        password = self.get_argument("password")
 
-            password_validated = await tornado.ioloop.IOLoop.current().run_in_executor(
-                None,
-                bcrypt.checkpw,
-                tornado.escape.utf8(password),
-                tornado.escape.utf8(user['hashed_password'])
-            )
+        try:
+            user = await queryone("SELECT * FROM users WHERE email = %s OR name = %s", email, nickname)
+        except NoResultError:  # user does not exist
+            self.set_status(409)
+            self.write({"status": 409,
+                        "reason": "user_not_found",
+                        "redirect_suggestions": ["/login", "/register"]})
+            self.flush()
 
-            if password_validated:
-                access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
+        # check passwords match
+        password_validated = await tornado.ioloop.IOLoop.current().run_in_executor(
+            None,
+            bcrypt.checkpw,
+            tornado.escape.utf8(password),
+            tornado.escape.utf8(user['hashed_password'])
+        )
 
-                token_cache().insert(access_token, user['id'])
+        if password_validated:
+            # generate token, store and return it
+            access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
 
+            token_cache().insert(access_token, user['id'])
 
-                self.set_status(200)
-                self.write({"status": 200,
-                            "success": True,
-                            "access_token": access_token})
-            else:
-                self.status(401)
-                self.write({"status": 401,
-                            "success": False,
-                            "reason": "password_validation_failed",
-                            "redirect_suggestions": ["/login", "/register"]})
-        #except MissingArgumentError:
-        #    self.set_status(400)
-        #    self.write({"status": 400,
-        #                "reason": "missing_argument",
-        #                "redirect_suggestions": "/login"})
-        #    self.flush()
+            self.set_status(200)
+            self.write({"status": 200,
+                        "success": True,
+                        "access_token": access_token})
+        else:
+            self.status(401)
+            self.write({"status": 401,
+                        "success": False,
+                        "reason": "password_validation_failed",
+                        "redirect_suggestions": ["/login", "/register"]})
+
 
 class RegisterHandler(BaseHandler):
     """
-
+    Register an account towards the API
     """
 
     def get(self):
@@ -348,46 +355,47 @@ class RegisterHandler(BaseHandler):
         # TODO maybe render a create.html (if it is not a web frontend, it simply shouldnt call get)
 
     async def post(self):
-        #try:
-            email = self.get_argument("email")
-            nickname = self.get_argument("nickname")
-            unhashed_password = self.get_argument("password")
+        """
+        POST request of /register
 
-            hashed_password = await tornado.ioloop.IOLoop.current().run_in_executor(
-                None,
-                bcrypt.hashpw,
-                tornado.escape.utf8(unhashed_password),
-                bcrypt.gensalt(),
-            )
+        query param: `email`
+        query param: `nickname`
+        query param: `password`
 
-            if (await user_exists(nickname)):
-                self.set_status(409)
-                self.write({"status": 409,
-                            "reason": "username_already_exists",
-                            "redirect_suggestions": ["/login"]})
-                self.flush()
-            else:
-                result = await queryone("INSERT INTO users (email, name, hashed_password, role) \
-                                VALUES (%s, %s, %s, %s) RETURNING id",
-                                email, nickname, tornado.escape.to_unicode(hashed_password), "user")
-                user_id = result['id']
+        """
+        # TODO check if those arguments were set, if not, return 400 bad request
+        email = self.get_argument("email")
+        nickname = self.get_argument("nickname")
+        unhashed_password = self.get_argument("password")
 
-                access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
+        hashed_password = await tornado.ioloop.IOLoop.current().run_in_executor(
+            None,
+            bcrypt.hashpw,
+            tornado.escape.utf8(unhashed_password),
+            bcrypt.gensalt(),
+        )
 
-                token_cache().insert(access_token, user_id)
+        if (await user_exists(nickname)):
+            self.set_status(409)
+            self.write({"status": 409,
+                        "reason": "username_already_exists",
+                        "redirect_suggestions": ["/login"]})
+            self.flush()
+        else:
+            # save user, generate token, store and return it
+            result = await queryone("INSERT INTO users (email, name, hashed_password, role) \
+                            VALUES (%s, %s, %s, %s) RETURNING id",
+                            email, nickname, tornado.escape.to_unicode(hashed_password), "user")
+            user_id = result['id']
 
+            access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
 
-                self.set_status(200)
-                self.write({"status": 200,
-                            "success": True,
-                            "access_token": access_token})
+            token_cache().insert(access_token, user_id)
 
-        #except MissingArgumentError:
-        #    self.set_status(400)
-        #    self.write({"status": 400,
-        #                "reason": "missing_argument",
-        #                "redirect_suggestions": "/register"})
-#            self.flush()
+            self.set_status(200)
+            self.write({"status": 200,
+                        "success": True,
+                        "access_token": access_token})
 
 
 def shutdown_module(module_name):
@@ -468,7 +476,6 @@ async def main():
 
     shutdown_event = tornado.locks.Event()
     await shutdown_event.wait()
-
 
 
 if __name__ == '__main__':
