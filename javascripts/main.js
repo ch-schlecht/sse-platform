@@ -27,8 +27,7 @@ $(document).on({
  * addModuleInstalled - if Module is installed:
  * add moduleTemplate to HTML and sets the ids and classes with module name
  * add class 'edit'
- * @param  {None} module name of the module
- * @return {None}        None
+ * @param  {String} module name of the module
  */
 function addModuleInstalled(module) {
   $modules.append(Mustache.render(modulesTemplate, { name: '' + module + '' }));
@@ -42,8 +41,7 @@ function addModuleInstalled(module) {
 /**
  * addModuleAvailable - if Module is not installed
  * add moduleTemplate to HTML and sets the ids and classes with module name
- * @param  {None} module name of the module
- * @return {None}        None
+ * @param  {String} module name of the module
  */
 function addModuleAvailable(module) {
   if (modulesInstalledList.indexOf(module) == -1) {
@@ -59,7 +57,6 @@ function addModuleAvailable(module) {
 /**
  * on page load - get all available and installed modules
  * add installed modules to list
- * @return {None}  None
  */
 $(function () {
       $.ajax({
@@ -104,7 +101,6 @@ $(function () {
 /**
  * on download click - download module and add it to installed-list
  * add class 'edit'
- * @return {None}  None
  */
 $modules.delegate('.download', 'click', function () {
     var $li = $(this).closest('li');
@@ -129,7 +125,6 @@ $modules.delegate('.download', 'click', function () {
 /**
  * on uninstall click - uninstall module and remove it from installed-list
  * removes class 'edit'
- * @return {None}  None
  */
 $modules.delegate('.uninstall', 'click', function () {
     var $li = $(this).closest('li');
@@ -159,7 +154,6 @@ $modules.delegate('.uninstall', 'click', function () {
  * on start click - starts module if its not already running and opens new tab
  * add text to li:paragraph
  * add class 'running' to buttons
- * @return {None}  None
  */
 $modules.delegate('.start', 'click', function () {
       var $li = $(this).closest('li');
@@ -185,7 +179,11 @@ $modules.delegate('.start', 'click', function () {
             }
 
           } else {
-            $li.children('p').append('<span id="port"> already running on a port </span>');
+            try {
+              $li.children('p').append('<span id="port"> running on port ' + module.port + '</span>');
+            } catch (e) {
+              $li.children('p').append('<span id="port"> already running on a port </span>');
+            }
           }
 
           $start.addClass('running');
@@ -204,17 +202,17 @@ $modules.delegate('.start', 'click', function () {
 /**
  * on stop click - stops the running module
  * removes id 'port' and class 'running'
- * @return {None}  None
  */
 $modules.delegate('.stop', 'click', function () {
+      var $li = $(this).closest('li');
       var $stop = $(this);
       var $start = $('#' + $(this).attr('id') + '.start');
-      var $port = $('#port');
+      var $port = $li.children('#port');
 
       // if ajax works this can be removed
       $(this).removeClass('running');
       $('#' + $(this).attr('id') + '.start').removeClass('running');
-      $('#port').remove();
+      $port.remove();
       $.ajax({
         type: 'GET',
         url: baseUrl + '/execution/stop?module_name=' + $(this).attr('id'),
@@ -240,8 +238,6 @@ $modules.delegate('.stop', 'click', function () {
  * displays 'bg-modal'
  * add class 'name' to save btn
  * convert config to JSON and display it in textarea
- *
- * @return {None}  None
  */
 $modules.delegate('.config', 'click', function () {
       var $li = $(this).closest('li');
@@ -270,8 +266,6 @@ $modules.delegate('.config', 'click', function () {
 
 /**
  * on close click - resets textarea and display of bg-modal
- *
- * @return {None}  None
  */
 $body.delegate('.close', 'click', function () {
       $('.bg-modal').css('display', 'none');
@@ -281,8 +275,6 @@ $body.delegate('.close', 'click', function () {
 /**
  * on save click - saves content of textarea as JSON to config of module
  * resets textarea and display of bg-modal
- *
- * @return {None}  None
  */
 $body.delegate('#save', 'click', function () {
 
@@ -316,8 +308,6 @@ $body.delegate('#save', 'click', function () {
 
 /**
  * prettyPrint - prints the text of 'config-area' pretty
- *
- * @return {None}  None
  */
 function prettyPrint() {
   var $ugly = $('#config-area').val();
