@@ -236,7 +236,7 @@ class ExecutionHandler(BaseHandler):
                                                                   no_keep_alive=True)  # need no-keep-alive to be able to stop server
                     port = determine_free_port()
 
-                    servers[module_to_start] = module_server
+                    servers[module_to_start] = {"server": module_server, "port": port}
 
                     # set services
                     if hasattr(module, 'get_services') and callable(getattr(module, 'get_services')):
@@ -255,6 +255,7 @@ class ExecutionHandler(BaseHandler):
                     print("module already running, starting denied. stop module first")
                     self.write({'type': 'starting_response',
                                 'module': module_to_start,
+                                'port': servers[module_to_start]['port'],
                                 'success': False,
                                 'reason': 'already_running'})
             elif slug == "stop":
@@ -268,7 +269,7 @@ class ExecutionHandler(BaseHandler):
 
                     data['server_services'] = server_services
 
-            self.render('templates/exe.html', data=data)
+                self.render('templates/exe.html', data=data)
 
         else:
             self.set_status(401)
@@ -411,7 +412,7 @@ def shutdown_module(module_name):
         if module_name in sys.modules:
             # TODO check (maybe with hasattr) if the module has this function
             sys.modules[module_name].stop_signal()  # call the stop function of the module to indicate stopping
-        server = servers[module_name]
+        server = servers[module_name]['server']
         server.stop()  # stop the corresponding server, note: after calling stop, requests in progress will still continue
         del servers[module_name]
         del server_services[module_name]
@@ -470,9 +471,10 @@ async def main():
 
     app = make_app()
     server = tornado.httpserver.HTTPServer(app, ssl_options=ssl_ctx)
-    servers['platform'] = server
+    port = 8888
+    servers['platform'] = {"server": server, "port": port}
     server_services['platform'] = {}
-    server.listen(8888)
+    server.listen(port)
 
     shutdown_event = tornado.locks.Event()
     await shutdown_event.wait()
