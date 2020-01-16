@@ -418,7 +418,7 @@ def shutdown_module(module_name):
         del server_services[module_name]
 
 
-def make_app():
+def make_app(dev_mode_arg):
     """
     Build the tornado Application
 
@@ -426,6 +426,9 @@ def make_app():
     :rtype: tornado.web.Application
 
     """
+    if dev_mode_arg:
+        global dev_mode
+        dev_mode = True
 
     return tornado.web.Application([
         (r"/", MainHandler),
@@ -446,10 +449,6 @@ async def main():
 
     ssl_ctx = None
 
-    if args.dev:
-        global dev_mode
-        dev_mode = True
-
     if args.config:
         with open(args.config) as json_file:
             config = json.load(json_file)
@@ -469,7 +468,7 @@ async def main():
 
     await initialize_db()
 
-    app = make_app()
+    app = make_app(args.dev)
     server = tornado.httpserver.HTTPServer(app, ssl_options=ssl_ctx)
     port = 8888
     servers['platform'] = {"server": server, "port": port}
