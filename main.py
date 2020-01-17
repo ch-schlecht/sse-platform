@@ -437,7 +437,9 @@ def make_app(dev_mode_arg):
         (r"/execution/([a-zA-Z\-0-9\.:,_]+)", ExecutionHandler),
         (r"/register", RegisterHandler),
         (r"/login", LoginHandler),
-        (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"})
+        (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"}),
+        (r"/img/(.*)", tornado.web.StaticFileHandler, {"path": "./img/"}),
+        (r"/javascripts/(.*)", tornado.web.StaticFileHandler, {"path": "./javascripts/"})
     ])
 
 
