@@ -13,13 +13,42 @@ In order to be able to run this software, some modules are required to be instal
 $ pip install -r requirements.txt
 ```
 
+Furthermore you will need PostgreSQL to store users. Please refer to any of their installation guides for you OS.
+Once PostgreSQL is installed, you will need to create a user and database. Open a Postgres Shell as postgres user:
+```sh
+$ sudo -u postgres psql
+```
+Next, create the following user and database:
+```sh
+$ CREATE DATABASE sse;
+CREATE USER admin WITH PASSWORD 'admin_password_goes_here';
+GRANT ALL ON DATABASE sse TO admin;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO admin;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO admin;
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO admin;
+```
+The tables will be created automatically on server startup. However, if you wish to generate them manually, execute the following command:
+```sh
+$ sudo -u postgres psql -U postgres -d sse < create_tables.sql
+```
+
 
 ## Running the platform
 
-To run this API, simply execute the following command:
+To run this API, you will need an SSL Certificate and the corrensponding SSL key. Those artifacts need to be supplied via config (in JSON format). An example config is present in the repo.
+
+If you do not already have SSL credentials, you can generate a self-signed certificate by executing:
 
 ```sh
-$ python3 main.py
+$ openssl req -x509 -newkey rsa:4096 -keyout key.key -out cert.crt -days 365
+```
+
+The config also needs to specify the connection details for your database. Please see the example config for the neccessary keys.
+
+To run the platform, execute the following command:
+
+```sh
+$ python3 main.py -c path/to/config.json
 ```
 
 ## Documentation

@@ -1,0 +1,9 @@
+{
+    "ssl_cert": "path/to/ssl/cert.crt",
+    "ssl_key": "path/to/ssl/key.key",
+    "pguser": "admin",
+    "pgpassword": "<admin_password_goes_here>",
+    "pghost": "localhost",
+    "pgport": 5432,
+    "pgdb": "sse"
+}

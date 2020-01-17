@@ -9,6 +9,7 @@ from github import Github
 from util import list_installed_modules, get_config_path, load_config, write_config, remove_module_files, determine_free_port
 from github_access import list_modules, remove_filename_from_path, clone
 from main import make_app
+from db_access import initialize_db
 
 ################################################
 #               util.py test                   #
@@ -40,7 +41,7 @@ def test_installed_modules(setup_util):
 
 
 def test_get_config_path(setup_util):
-    assert "modules/test/config.json" == get_config_path("test")
+    assert os.path.join("modules", "test", "config.json") == get_config_path("test")
 
 
 def test_load_config(setup_util):
@@ -124,7 +125,8 @@ def test_clone(setup_github_access):
 ################################################
 @pytest.fixture()
 def app():
-    return make_app()
+    dev_mode = True  # no auth needed on the requests
+    return make_app(dev_mode)
 
 
 @pytest.fixture()
@@ -201,3 +203,46 @@ async def test_config_handler_post_update(http_client, base_url, setup_test_modu
                                        method="POST",
                                        body=json.dumps({"test": "new_val", "port": 654321}))
     assert response.code == 200
+
+
+@pytest.mark.gen_test
+async def test_register_handler_post(http_client, base_url):
+    email = "pytest@mail.de"
+    nickname = "pytest"
+    password = "pytest123"
+
+    await initialize_db()
+
+    response = await http_client.fetch(base_url + "/register?email={email}&nickname={nick}&password={passwd}".format(email=email, nick=nickname, passwd=password),
+                                        method="POST",
+                                        allow_nonstandard_methods=True,
+                                        raise_error=False)
+    body = tornado.escape.json_decode(response.body)
+    assert response.code == 200 or response.code == 409  # 409 is also ok, user already exists
+    if response.code == 200:
+        assert "success" and "status" and "access_token" in body
+    elif response.code == 409:
+        assert "status" and "reason" in body
+
+
+@pytest.mark.gen_test
+async def test_login_handler_post(http_client, base_url):
+    email = "pytest@mail.de"
+    nickname = "pytest"
+    password = "pytest123"
+
+    await initialize_db()
+
+    # do the registration call to ensure the user exists
+    await http_client.fetch(base_url + "/register?email={email}&nickname={nick}&password={passwd}".format(email=email, nick=nickname, passwd=password),
+                                        method="POST",
+                                        allow_nonstandard_methods=True,
+                                        raise_error=False)
+
+    # the actual login call
+    response = await http_client.fetch(base_url + "/login?email={email}&nickname={nick}&password={passwd}".format(email=email, nick=nickname, passwd=password),
+                                        method="POST",
+                                        allow_nonstandard_methods=True)
+    body = tornado.escape.json_decode(response.body)
+    assert response.code == 200
+    assert "success" and "status" and "access_token" in body
