@@ -67,7 +67,7 @@ class MainHandler(BaseHandler):
 
         """
         if self.current_user:
-            self.render("index.html")
+            self.render("main.html")
         else:
             self.set_status(401)
             self.write({"status": 401,
@@ -290,8 +290,7 @@ class LoginHandler(BaseHandler):
     """
 
     def get(self):
-        pass
-        # TODO maybe render a login.html (if it is not a web frontend, it simply shouldnt call get)
+        self.render("index.html")
 
     async def post(self):
         """
@@ -350,10 +349,7 @@ class RegisterHandler(BaseHandler):
     """
 
     def get(self):
-        self.set_status(501)
-        self.write({"status": 501,
-                    "reason": "not_yet_implemented"})
-        # TODO maybe render a create.html (if it is not a web frontend, it simply shouldnt call get)
+        self.render("index.html")
 
     async def post(self):
         """
