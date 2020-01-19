@@ -1,6 +1,10 @@
 
-var baseUrl = 'http://localhost:8888';
+var baseUrl = 'https://localhost:8888';
 var newTabUrl = 'http://localhost';
+var token = JSON.parse(localStorage.getItem('token'));
+var tokenURL = '?access_token=' + token;
+var tokenURLAnd = '&access_token=' + token;
+var loginURL = 'https://localhost:8888/login';
 var $modules = $('#modules');
 var modulesInstalledList = [];
 var modulesTemplate =    '' +
@@ -61,14 +65,13 @@ function addModuleAvailable(module) {
 $(function () {
       $.ajax({
         type: 'GET',
-        url: baseUrl + '/modules/list_installed',
+        url: baseUrl + '/modules/list_installed' + tokenURL,
         dataType: 'json',
         success: function (modules) {
           $.each(modules.installed_modules, function (i, module) {
             modulesInstalledList.push(module);
             addModuleInstalled(module);
           });
-
         },
 
         error: function (xhr, status, error) {
@@ -90,10 +93,14 @@ $(function () {
         },
 
         error: function (xhr, status, error) {
-          alert('error loading available modules');
-          console.log(error);
-          console.log(status);
-          console.log(xhr);
+          if (xhr.status == 401) {
+            window.location.href = loginURL;
+          } else {
+            alert('error loading available modules');
+            console.log(error);
+            console.log(status);
+            console.log(xhr);
+          }
         },
       });
     });
@@ -106,7 +113,7 @@ $modules.delegate('.download', 'click', function () {
     var $li = $(this).closest('li');
     $.ajax({
       type: 'GET',
-      url: baseUrl + '/modules/download?module_name=' + $(this).attr('data-id'),
+      url: baseUrl + '/modules/download?module_name=' + $(this).attr('data-id') + tokenURLAnd,
       dataType: 'json',
       success: function (module) {
         modulesInstalledList.push(module.module);
@@ -114,10 +121,14 @@ $modules.delegate('.download', 'click', function () {
       },
 
       error: function (xhr, status, error) {
-        alert('error downloading module');
-        console.log(error);
-        console.log(status);
-        console.log(xhr);
+        if (xhr.status == 401) {
+          window.location.href = loginURL;
+        } else {
+          alert('error downloading module');
+          console.log(error);
+          console.log(status);
+          console.log(xhr);
+      }
       },
     });
   });
@@ -130,7 +141,7 @@ $modules.delegate('.uninstall', 'click', function () {
     var $li = $(this).closest('li');
     $.ajax({
       type: 'GET',
-      url: baseUrl + '/modules/uninstall?module_name=' + $(this).attr('id'),
+      url: baseUrl + '/modules/uninstall?module_name=' + $(this).attr('id') + tokenURLAnd,
       dataType: 'json',
       success: function (module) {
         var index = modulesInstalledList.indexOf(module.module);
@@ -138,14 +149,17 @@ $modules.delegate('.uninstall', 'click', function () {
           modulesInstalledList.splice(index, 1);
           $li.removeClass('edit');
         }
-
       },
 
       error: function (xhr, status, error) {
-        alert('error uninstalling module');
-        console.log(error);
-        console.log(status);
-        console.log(xhr);
+        if (xhr.status == 401) {
+          window.location.href = loginURL;
+        } else {
+          alert('error uninstalling module');
+          console.log(error);
+          console.log(status);
+          console.log(xhr);
+        }
       },
     });
   });
@@ -161,7 +175,7 @@ $modules.delegate('.start', 'click', function () {
       var $stop = $('#' + $(this).attr('id') + '.stop');
       $.ajax({
         type: 'GET',
-        url: baseUrl + '/execution/start?module_name=' + $(this).attr('id'),
+        url: baseUrl + '/execution/start?module_name=' + $(this).attr('id')  + tokenURLAnd,
         dataType: 'json',
         success: function (module) {
           console.log('started');
@@ -191,10 +205,14 @@ $modules.delegate('.start', 'click', function () {
         },
 
         error: function (xhr, status, error) {
-          alert('error starting module');
-          console.log(error);
-          console.log(status);
-          console.log(xhr);
+          if (xhr.status == 401) {
+            window.location.href = loginURL;
+          } else {
+            alert('error starting module');
+            console.log(error);
+            console.log(status);
+            console.log(xhr);
+          }
         },
       });
     });
@@ -205,9 +223,10 @@ $modules.delegate('.start', 'click', function () {
  */
 $modules.delegate('.stop', 'click', function () {
       var $li = $(this).closest('li');
+      var $p = $(this).siblings('p');
       var $stop = $(this);
       var $start = $('#' + $(this).attr('id') + '.start');
-      var $port = $li.children('#port');
+      var $port = $p.children('#port');
 
       // if ajax works this can be removed
       $(this).removeClass('running');
@@ -215,7 +234,7 @@ $modules.delegate('.stop', 'click', function () {
       $port.remove();
       $.ajax({
         type: 'GET',
-        url: baseUrl + '/execution/stop?module_name=' + $(this).attr('id'),
+        url: baseUrl + '/execution/stop?module_name=' + $(this).attr('id')  + tokenURLAnd,
         dataType: 'json',
         success: function (module) {
           alert('stopped');
@@ -225,10 +244,14 @@ $modules.delegate('.stop', 'click', function () {
         },
 
         error: function (xhr, status, error) {
-          alert('error stopping module');
-          console.log(error);
-          console.log(status);
-          console.log(xhr);
+          if (xhr.status == 401) {
+            window.location.href = loginURL;
+          } else {
+            alert('error stopping module');
+            console.log(error);
+            console.log(status);
+            console.log(xhr);
+          }
         },
       });
     });
@@ -243,7 +266,7 @@ $modules.delegate('.config', 'click', function () {
       var $li = $(this).closest('li');
       $.ajax({
         type: 'GET',
-        url: baseUrl + '/configs/view?module_name=' + $li.attr('name'),
+        url: baseUrl + '/configs/view?module_name=' + $li.attr('name') + tokenURLAnd,
         dataType: 'json',
         success: function (module) {
           $('.bg-modal').css('display', 'flex');
@@ -256,10 +279,14 @@ $modules.delegate('.config', 'click', function () {
         },
 
         error: function (xhr, status, error) {
-          alert('error loading config of module');
-          console.log(error);
-          console.log(status);
-          console.log(xhr);
+          if (xhr.status == 401) {
+            window.location.href = loginURL;
+          } else {
+            alert('error loading config of module');
+            console.log(error);
+            console.log(status);
+            console.log(xhr);
+          }
         },
       });
     });
@@ -289,7 +316,7 @@ $body.delegate('#save', 'click', function () {
       console.log(config);
       $.ajax({
         type: 'POST',
-        url: baseUrl + '/configs/update?module_name=' + $(this).attr('class'),
+        url: baseUrl + '/configs/update?module_name=' + $(this).attr('class') + tokenURLAnd,
         data: config,
         success: function (module) {
           console.log(module);
@@ -298,10 +325,14 @@ $body.delegate('#save', 'click', function () {
         },
 
         error: function (xhr, status, error) {
-          alert('error saving config of module, check syntax');
-          console.log(error);
-          console.log(status);
-          console.log(xhr);
+          if (xhr.status == 401) {
+            window.location.href = loginURL;
+          } else {
+            alert('error saving config of module, check syntax');
+            console.log(error);
+            console.log(status);
+            console.log(xhr);
+          }
         },
       });
     });

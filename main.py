@@ -42,17 +42,14 @@ class BaseHandler(tornado.web.RequestHandler):
         """
 
         if dev_mode is False:
-            if "Authorization" in self.request.headers:
-                token = self.request.headers["Authorization"]
-                cached_user = token_cache().get(token)
-                if cached_user is not None:
-                    self.current_user = cached_user["user_id"]
-                else:
-                    self.current_user = None
+            token = self.get_argument("access_token", "")
+            cached_user = token_cache().get(token)
+            if cached_user is not None:
+                self.current_user = cached_user["user_id"]
             else:
                 self.current_user = None
         else:
-            self.current_user = -1  # user_id -1 indicates developer mode
+            self.current_user = -1
 
 
 class MainHandler(BaseHandler):
@@ -427,7 +424,7 @@ def make_app(dev_mode_arg):
         dev_mode = True
 
     return tornado.web.Application([
-        (r"/", MainHandler),
+        (r"/main", MainHandler),
         (r"/modules/([a-zA-Z\-0-9\.:,_]+)", ModuleHandler),
         (r"/configs/([a-zA-Z\-0-9\.:,_]+)", ConfigHandler),
         (r"/execution/([a-zA-Z\-0-9\.:,_]+)", ExecutionHandler),
