@@ -6,6 +6,7 @@ var accessToken;
 /**
  * on tabchange- adds or removes selected class from tab
  */
+
 $(window).on('hashchange', function () {
 	 if (location.hash.slice(1)=='register') {
   		$('.card').addClass('extend');
@@ -19,7 +20,7 @@ $(window).on('hashchange', function () {
 
 });
 
-$(window).trigger('hashchange');
+
 
 /** This function checks if email is valid.
  * @param {String} email - email (input)
@@ -30,17 +31,58 @@ function validateEmail(email) {
 }
 
 /**
+ * on page load, modify URL by setting /login?#login to define a login url for this page
+ */
+$(document).ready(function () {
+		var pathname = window.location.pathname; // Returns path only (/path/example.html)
+		var url      = window.location.href;     // Returns full URL (https://example.com/path/example.html)
+		var origin   = window.location.origin;   // Returns base URL (https://example.com)
+		//window.location.replace(origin + '/login?'); Reloads :(
+		window.history.pushState("login", "SSE Platform Login", origin + '/login?');
+		window.location.hash = 'login';
+});
+
+$(window).trigger('hashchange');
+
+/**
+ * load username and password if rememberMe was checked
+ */
+$(function () {
+
+    if (localStorage.chkbox && localStorage.chkbox != '') {
+        $('#rememberMe').attr('checked', 'checked');
+        $('input#username').val(localStorage.username);
+        $('input#password').val(localStorage.pass);
+    } else {
+        $('#rememberMe').removeAttr('checked');
+        $('input#username').val('');
+        $('input#password').val('');
+    }
+	});
+
+/**
  * login - This is a function to login a user in our database.
+ * save username and password
  */
 function login() {
   var username = $('input#username').val();
   var password = $('input#password').val();
 
+	if ($('#rememberMe').is(':checked')) {
+			// save username and password
+			localStorage.username = username;
+			localStorage.pass = password;
+			localStorage.chkbox = $('#rememberMe').val();
+	} else {
+			localStorage.username = '';
+			localStorage.pass = '';
+			localStorage.chkbox = '';
+		}
+
 	$.ajax({
 		type: 'POST',
 		url: baseUrl + '/login?nickname=' + username + '&password=' + password,
 		success: function (data) {
-			console.log(data);
 			accessToken = data.access_token;
 			localStorage.setItem('token', JSON.stringify(accessToken));
 			// window.sessionStorage.accessToken = accessToken;
@@ -80,6 +122,7 @@ function register() {
 				alert('Registered successfully.');
 				accessToken = data.access_token;
 				localStorage.setItem('token', JSON.stringify(accessToken));
+				loadMainPage();
 			},
 
 			error: function (xhr, status, error) {

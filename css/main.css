@@ -2,6 +2,12 @@ html {
   text-align: center;
 }
 
+.logout{
+   position:fixed;
+   right:10px;
+   top:5px;
+}
+
 body {
     font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
     margin: 0px auto;
@@ -59,7 +65,7 @@ ul li.edit .stop.running{
     height:     100%;
     width:      100%;
     background: rgba( 255, 255, 255, .8 )
-                url('http://i.stack.imgur.com/FhHRx.gif')
+                url('../img/ajax-loader.gif')
                 50% 50%
                 no-repeat;
 }

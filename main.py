@@ -397,7 +397,7 @@ class RegisterHandler(BaseHandler):
                             email, nickname, tornado.escape.to_unicode(hashed_password), "user")
             user_id = result['id']
 
-            access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
+            access_token = tornado.escape.url_escape(b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8"))
 
             token_cache().insert(access_token, user_id)
 

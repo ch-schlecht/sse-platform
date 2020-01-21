@@ -28,6 +28,33 @@ $(document).on({
   });
 
 /**
+ * on logout click - remove token and redirect to login page
+ *
+ */
+$('.logout').click(function () {
+  console.log('clicked');
+  $.ajax({
+    type: 'GET',
+    url: baseUrl + '/logout' + tokenURL,
+    success: function (data) {
+      localStorage.removeItem('token');
+      window.location.href = loginURL;
+    },
+
+    error: function (xhr, status, error) {
+      if (xhr.status == 401) {
+        window.location.href = loginURL;
+      } else {
+        alert('error logout');
+        console.log(error);
+        console.log(status);
+        console.log(xhr);
+      }
+    },
+  });
+});
+
+/**
  * addModuleInstalled - if Module is installed:
  * add moduleTemplate to HTML and sets the ids and classes with module name
  * add class 'edit'
