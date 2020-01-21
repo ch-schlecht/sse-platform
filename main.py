@@ -42,7 +42,7 @@ class BaseHandler(tornado.web.RequestHandler):
         """
 
         if dev_mode is False:
-            token = self.get_argument("access_token", "")
+            token = tornado.escape.url_escape(self.get_argument("access_token", ""))  # need to url_escape because e.g. + would become space --> validation would fail
             cached_user = token_cache().get(token)
             if cached_user is not None:
                 self.current_user = cached_user["user_id"]
@@ -324,7 +324,7 @@ class LoginHandler(BaseHandler):
 
         if password_validated:
             # generate token, store and return it
-            access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
+            access_token = tornado.escape.url_escape(b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8"))
 
             token_cache().insert(access_token, user['id'])
 
@@ -338,6 +338,21 @@ class LoginHandler(BaseHandler):
                         "success": False,
                         "reason": "password_validation_failed",
                         "redirect_suggestions": ["/login", "/register"]})
+
+
+class LogoutHandler(BaseHandler):
+
+    def get(self):
+        pass
+
+    def post(self):
+        # simply remove token from the cache --> user needs to login again to proceed
+        token = tornado.escape.url_escape(self.get_argument("access_token", ""))
+        token_cache().remove(token)
+        self.set_status(200)
+        self.write({"status": 200,
+                    "success": True,
+                    "redirect_suggestions": ["/login"]})
 
 
 class RegisterHandler(BaseHandler):
@@ -430,6 +445,7 @@ def make_app(dev_mode_arg):
         (r"/execution/([a-zA-Z\-0-9\.:,_]+)", ExecutionHandler),
         (r"/register", RegisterHandler),
         (r"/login", LoginHandler),
+        (r"/logout", LogoutHandler),
         (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"}),
         (r"/img/(.*)", tornado.web.StaticFileHandler, {"path": "./img/"}),
         (r"/javascripts/(.*)", tornado.web.StaticFileHandler, {"path": "./javascripts/"})

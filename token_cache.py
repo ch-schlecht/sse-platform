@@ -85,6 +85,20 @@ class Token_Cache:
         else:
             return None
 
+    def remove(self, token):
+        """
+        Removes a token from the cache. This indicates the user is logging out and to proceed authentication is required again
+
+        :param token: the token to remove from the cache
+        :type token: string
+
+        """
+        self._remove_expired()
+        if token in self._data:
+            print("removed from cache:")
+            print(self._data[token])
+            del self._data[token]
+
     def _update_ttl(self, token):
         """
         Helper function to renew the TTL of the give token. Not meant to be called from outside
