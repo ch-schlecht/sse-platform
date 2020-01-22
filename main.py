@@ -460,6 +460,11 @@ async def main():
 
     ssl_ctx = None
 
+    # set up modules directory if not already present
+    if not os.path.isdir(CONSTANTS.MODULE_DIRECTORY):
+        os.mkdir(CONSTANTS.MODULE_DIRECTORY)
+
+    # deal with config properties
     if args.config:
         with open(args.config) as json_file:
             config = json.load(json_file)
@@ -477,6 +482,7 @@ async def main():
         print('config not supplied or an error occured when reading the file')
         sys.exit(-1)
 
+    # init database
     await initialize_db()
 
     app = make_app(args.dev)
