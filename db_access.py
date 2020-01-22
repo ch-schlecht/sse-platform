@@ -3,6 +3,7 @@ import aiopg
 import CONSTANTS
 import tornado
 import os
+import bcrypt
 
 database = None
 
@@ -31,9 +32,13 @@ class NoResultError(Exception):
     pass
 
 
-async def initialize_db():
+async def initialize_db(create_admin):
     """
-    initializes the database, i.e. creates a connection pool and creates the neccessary tables
+    initializes the database, i.e. creates a connection pool and creates the neccessary tables.
+    If create_admin is True, an admin account with credentials from the config will be created.
+
+    :param create_admin: Boolean to create an admin account or not
+    :type create_admin: bool
 
     """
     config = get_config()
@@ -49,22 +54,39 @@ async def initialize_db():
         global database
         database = await aiopg.create_pool(dsn, echo=True)
         if database is not None:
-            await initialize_tables()
+            await initialize_tables(create_admin)
         else:
             print("database creation failed")
     else:
         print("config misses neccessary keys")
 
 
-async def initialize_tables():
+async def initialize_tables(create_admin):
     """
-    loads the create_tables.sql file, if it exists and executes the table creations
+    loads the create_tables.sql file, if it exists and executes the table creations.
+    If create_admin is True, an admin account with credentials from the config will be created
+
+    :param create_admin: Boolean to create an admin account or not
+    :type create_admin: bool
 
     """
     if os.path.isfile("create_tables.sql"):
         with open("create_tables.sql", "r") as fp:
             schema = fp.read()
         await execute(schema)
+
+    if create_admin:  # create the admin account as indicated by the flag with credentials from config
+        config = get_config()
+        if config is not None:
+            admin_username = config['platform_admin_username']
+            admin_passwd = config['platform_admin_password']
+            admin_email = config['platform_admin_email']
+
+            hashed_password = bcrypt.hashpw(tornado.escape.utf8(admin_passwd), bcrypt.gensalt())
+
+            await execute("INSERT INTO users (email, name, hashed_password, role) \
+                           VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                           admin_email, admin_username, tornado.escape.to_unicode(hashed_password), "admin")
 
 
 def row_to_obj(row, cur):

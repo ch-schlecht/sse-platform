@@ -5,5 +5,8 @@
     "pgpassword": "<admin_password_goes_here>",
     "pghost": "localhost",
     "pgport": 5432,
-    "pgdb": "sse"
+    "pgdb": "sse",
+    "platform_admin_username": "admin",
+    "platform_admin_password": "<admin_password_goes_here",
+    "platform_admin_email": "admin@testmail.de"
 }

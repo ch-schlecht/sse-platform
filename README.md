@@ -48,8 +48,16 @@ The config also needs to specify the connection details for your database. Pleas
 To run the platform, execute the following command:
 
 ```sh
-$ python3 main.py -c path/to/config.json
+$ python3 main.py -c path/to/config.json [--dev] [--create_admin]
 ```
+
+Mandatory arguments:
+- -c : the path to the json config file
+
+Optional arguments:
+- --dev : developer mode, no authentication is required to access the api endpoints
+- --create_admin : automatically create an admin account on the platform. Credentials will be read from the config. See the example config for the required keys
+
 
 ## Documentation
 

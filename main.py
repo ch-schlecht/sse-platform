@@ -456,6 +456,7 @@ async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", type=str, help="path to config file")
     parser.add_argument("--dev", help="run in dev mode (no auth needed)", action="store_true")
+    parser.add_argument("--create_admin", help="create an admin account (with credentials from config)", action="store_true")
     args = parser.parse_args()
 
     ssl_ctx = None
@@ -483,7 +484,7 @@ async def main():
         sys.exit(-1)
 
     # init database
-    await initialize_db()
+    await initialize_db(args.create_admin)
 
     app = make_app(args.dev)
     server = tornado.httpserver.HTTPServer(app, ssl_options=ssl_ctx)
