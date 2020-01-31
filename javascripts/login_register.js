@@ -37,9 +37,9 @@ $(document).ready(function () {
 		var pathname = window.location.pathname; // Returns path only (/path/example.html)
 		var url      = window.location.href;     // Returns full URL (https://example.com/path/example.html)
 		var origin   = window.location.origin;   // Returns base URL (https://example.com)
-		//window.location.replace(origin + '/login?'); Reloads :(
-		window.history.pushState("login", "SSE Platform Login", origin + '/login?');
 		window.location.hash = 'login';
+		//window.history.pushState("login", "SSE Platform Login", origin + '/login?'); //needs firefox 4+, works in chrome
+
 });
 
 $(window).trigger('hashchange');
@@ -47,7 +47,7 @@ $(window).trigger('hashchange');
 /**
  * load username and password if rememberMe was checked
  */
-$(function () {
+$(document).ready(function () {
 
     if (localStorage.chkbox && localStorage.chkbox != '') {
         $('#rememberMe').attr('checked', 'checked');
@@ -65,6 +65,7 @@ $(function () {
  * save username and password
  */
 function login() {
+
   var username = $('input#username').val();
   var password = $('input#password').val();
 
