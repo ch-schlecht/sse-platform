@@ -2,7 +2,6 @@
 var baseUrl = 'https://localhost:8888';
 var newTabUrl = 'https://localhost';
 var $body = $('body');
-var accessToken;
 /**
  * on tabchange- adds or removes selected class from tab
  */
@@ -84,10 +83,6 @@ function login() {
 		type: 'POST',
 		url: baseUrl + '/login?nickname=' + username + '&password=' + password,
 		success: function (data) {
-			accessToken = data.access_token;
-			localStorage.setItem('token', JSON.stringify(accessToken));
-			// window.sessionStorage.accessToken = accessToken;
-			// document.cookie='access_token=' + accessToken
 			loadMainPage();
 		},
 
@@ -121,8 +116,6 @@ function register() {
 			url: baseUrl + '/register?email=' + mail + '&nickname=' + username + '&password=' + password,
 			success: function (data) {
 				alert('Registered successfully.');
-				accessToken = data.access_token;
-				localStorage.setItem('token', JSON.stringify(accessToken));
 				loadMainPage();
 			},
 
@@ -156,20 +149,19 @@ $body.delegate('.register', 'click', function () {
  * redirect to main page
  */
 function loadMainPage() {
-	var token = JSON.parse(localStorage.getItem('token'));
+
 	$.ajax({
 		type: 'GET',
-		url: baseUrl + '/main?access_token=' + token,
+		url: baseUrl + '/main',
 
 		success: function (data) {
 			setTimeout(function() {
-				window.location.href = baseUrl + '/main?access_token=' + token;
+				window.location.href = baseUrl + '/main';
 			}, 333);
 		},
 
 		error: function (xhr, status, error) {
 			if (xhr.status == 401) {
-				alert('no access token or not valid');
 				console.log(error);
 				console.log(status);
 				console.log(xhr);

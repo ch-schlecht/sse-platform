@@ -1,9 +1,6 @@
 
 var baseUrl = 'https://localhost:8888';
 var newTabUrl = 'http://localhost';
-var token = JSON.parse(localStorage.getItem('token'));
-var tokenURL = '?access_token=' + token;
-var tokenURLAnd = '&access_token=' + token;
 var loginURL = 'https://localhost:8888/login';
 var $modules = $('#modules');
 var modulesInstalledList = [];
@@ -28,16 +25,15 @@ $(document).on({
   });
 
 /**
- * on logout click - remove token and redirect to login page
+ * on logout click -  redirect to login page
  *
  */
 $('.logout').click(function () {
   console.log('clicked');
   $.ajax({
     type: 'GET',
-    url: baseUrl + '/logout' + tokenURL,
+    url: baseUrl + '/logout',
     success: function (data) {
-      localStorage.removeItem('token');
       window.location.href = loginURL;
     },
 
@@ -92,7 +88,7 @@ function addModuleAvailable(module) {
 $(function () {
       $.ajax({
         type: 'GET',
-        url: baseUrl + '/modules/list_installed' + tokenURL,
+        url: baseUrl + '/modules/list_installed',
         dataType: 'json',
         success: function (modules) {
           $.each(modules.installed_modules, function (i, module) {
@@ -140,7 +136,7 @@ $modules.delegate('.download', 'click', function () {
     var $li = $(this).closest('li');
     $.ajax({
       type: 'GET',
-      url: baseUrl + '/modules/download?module_name=' + $(this).attr('data-id') + tokenURLAnd,
+      url: baseUrl + '/modules/download?module_name=' + $(this).attr('data-id'),
       dataType: 'json',
       success: function (module) {
         modulesInstalledList.push(module.module);
@@ -168,7 +164,7 @@ $modules.delegate('.uninstall', 'click', function () {
     var $li = $(this).closest('li');
     $.ajax({
       type: 'GET',
-      url: baseUrl + '/modules/uninstall?module_name=' + $(this).attr('id') + tokenURLAnd,
+      url: baseUrl + '/modules/uninstall?module_name=' + $(this).attr('id'),
       dataType: 'json',
       success: function (module) {
         var index = modulesInstalledList.indexOf(module.module);
@@ -202,7 +198,7 @@ $modules.delegate('.start', 'click', function () {
       var $stop = $('#' + $(this).attr('id') + '.stop');
       $.ajax({
         type: 'GET',
-        url: baseUrl + '/execution/start?module_name=' + $(this).attr('id')  + tokenURLAnd,
+        url: baseUrl + '/execution/start?module_name=' + $(this).attr('id'),
         dataType: 'json',
         success: function (module) {
           console.log('started');
@@ -210,7 +206,7 @@ $modules.delegate('.start', 'click', function () {
           console.log(module.port);
 
           if (module.reason !== 'already_running') {
-            $li.children('p').append('<span id="port"> running on port ' + module.port + '</span>');
+            $li.children('p').append('<span id="port"> running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + '>' + module.port + '</a></span>');
 
             var win = window.open('' + newTabUrl + ':' + module.port, '_blank');
             if (win) {
@@ -221,7 +217,7 @@ $modules.delegate('.start', 'click', function () {
 
           } else {
             try {
-              $li.children('p').append('<span id="port"> running on port ' + module.port + '</span>');
+              $li.children('p').append('<span id="port"> already running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + '>' + module.port + '</a></span>');
             } catch (e) {
               $li.children('p').append('<span id="port"> already running on a port </span>');
             }
@@ -261,7 +257,7 @@ $modules.delegate('.stop', 'click', function () {
       $port.remove();
       $.ajax({
         type: 'GET',
-        url: baseUrl + '/execution/stop?module_name=' + $(this).attr('id')  + tokenURLAnd,
+        url: baseUrl + '/execution/stop?module_name=' + $(this).attr('id'),
         dataType: 'json',
         success: function (module) {
           alert('stopped');
@@ -293,7 +289,7 @@ $modules.delegate('.config', 'click', function () {
       var $li = $(this).closest('li');
       $.ajax({
         type: 'GET',
-        url: baseUrl + '/configs/view?module_name=' + $li.attr('name') + tokenURLAnd,
+        url: baseUrl + '/configs/view?module_name=' + $li.attr('name'),
         dataType: 'json',
         success: function (module) {
           $('.bg-modal').css('display', 'flex');
@@ -343,7 +339,7 @@ $body.delegate('#save', 'click', function () {
       console.log(config);
       $.ajax({
         type: 'POST',
-        url: baseUrl + '/configs/update?module_name=' + $(this).attr('class') + tokenURLAnd,
+        url: baseUrl + '/configs/update?module_name=' + $(this).attr('class'),
         data: config,
         success: function (module) {
           console.log(module);
