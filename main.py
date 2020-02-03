@@ -42,7 +42,14 @@ class BaseHandler(tornado.web.RequestHandler):
         """
 
         if dev_mode is False:
-            token = tornado.escape.url_escape(self.get_argument("access_token", ""))  # need to url_escape because e.g. + would become space --> validation would fail
+            token = self.get_secure_cookie("access_token")
+            if token is not None:
+                token = token.decode("utf-8")  # need to to decoding separate because of possible None value
+            else:  # cookie not set, try to auth with authorization header
+                if "Authorization" in self.request.headers:
+                    token = self.request.headers["Authorization"]
+            self._access_token = token
+
             cached_user = token_cache().get(token)
             if cached_user is not None:
                 self.current_user = cached_user["user_id"]
@@ -324,9 +331,11 @@ class LoginHandler(BaseHandler):
 
         if password_validated:
             # generate token, store and return it
-            access_token = tornado.escape.url_escape(b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8"))
+            access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
 
             token_cache().insert(access_token, user['id'])
+
+            self.set_secure_cookie("access_token", access_token)
 
             self.set_status(200)
             self.write({"status": 200,
@@ -347,8 +356,10 @@ class LogoutHandler(BaseHandler):
 
     def post(self):
         # simply remove token from the cache --> user needs to login again to proceed
-        token = tornado.escape.url_escape(self.get_argument("access_token", ""))
-        token_cache().remove(token)
+        token_cache().remove(self._access_token)
+
+        self.clear_cookie("access_token")
+
         self.set_status(200)
         self.write({"status": 200,
                     "success": True,
@@ -397,9 +408,11 @@ class RegisterHandler(BaseHandler):
                             email, nickname, tornado.escape.to_unicode(hashed_password), "user")
             user_id = result['id']
 
-            access_token = tornado.escape.url_escape(b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8"))
+            access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
 
             token_cache().insert(access_token, user_id)
+
+            self.set_secure_cookie("access_token", access_token)
 
             self.set_status(200)
             self.write({"status": 200,
@@ -438,6 +451,8 @@ def make_app(dev_mode_arg):
         global dev_mode
         dev_mode = True
 
+    cookie_secret = b64encode(os.urandom(32)).decode("utf-8")  # 32 byte random string
+
     return tornado.web.Application([
         (r"/main", MainHandler),
         (r"/modules/([a-zA-Z\-0-9\.:,_]+)", ModuleHandler),
@@ -449,7 +464,7 @@ def make_app(dev_mode_arg):
         (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"}),
         (r"/img/(.*)", tornado.web.StaticFileHandler, {"path": "./img/"}),
         (r"/javascripts/(.*)", tornado.web.StaticFileHandler, {"path": "./javascripts/"})
-    ])
+    ], cookie_secret=cookie_secret)
 
 
 async def main():
