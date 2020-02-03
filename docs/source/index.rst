@@ -13,7 +13,7 @@ API Documentation
 Frontend
 ========
 
-.. http:get:: /
+.. http:get:: /main
 
     The main Page
 

@@ -65,11 +65,12 @@ The documentation is built with [Sphinx](http://www.sphinx-doc.org/en/master/) a
 
 #### Building the Docs yourself
 
-If you require to build the docs yourself, you need the install Sphinx. Please refer to their [Installation guide](http://www.sphinx-doc.org/en/master/usage/installation.html) for instructions.
-Secondly, you need to install the HTTP templates for Sphinx:
+If you require to build the docs yourself, you need to install Sphinx. Please refer to their [Installation guide](http://www.sphinx-doc.org/en/master/usage/installation.html) for instructions.
+Secondly, you need to install the HTTP templates for Sphinx as well as JSDoc to ensure building the documentation of the frontend:
 
 ```sh
 $ pip install sphinxcontrib-httpdomain
+$ npm install -g jsdoc
 ```
 
 To now build the docs, navigate into the docs/ directory and execute:

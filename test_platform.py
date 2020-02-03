@@ -146,7 +146,7 @@ def clean_after(request):
 
 @pytest.mark.gen_test
 async def test_main_handler_get(http_client, base_url):
-    response = await http_client.fetch(base_url)
+    response = await http_client.fetch(base_url + "/main")
     assert response.code == 200
 
 
@@ -211,7 +211,7 @@ async def test_register_handler_post(http_client, base_url):
     nickname = "pytest"
     password = "pytest123"
 
-    await initialize_db()
+    await initialize_db(False)
 
     response = await http_client.fetch(base_url + "/register?email={email}&nickname={nick}&password={passwd}".format(email=email, nick=nickname, passwd=password),
                                         method="POST",
@@ -231,7 +231,7 @@ async def test_login_handler_post(http_client, base_url):
     nickname = "pytest"
     password = "pytest123"
 
-    await initialize_db()
+    await initialize_db(False)
 
     # do the registration call to ensure the user exists
     await http_client.fetch(base_url + "/register?email={email}&nickname={nick}&password={passwd}".format(email=email, nick=nickname, passwd=password),
