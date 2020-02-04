@@ -404,12 +404,3 @@ token_cache.py
 ==============
 .. automodule:: token_cache
     :members:
-
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

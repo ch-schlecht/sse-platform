@@ -31,8 +31,10 @@ class BaseHandler(tornado.web.RequestHandler):
     # use prepare instead of get_current_user because prepare can be async
     def prepare(self):
         """
-        Checks for the access token in the Authorization header.
-        If it is present and can be associated with a user account, self.current_user
+        Checks for the presence of the access token.
+        First the "access_token" cookie is checked. If it is not present there,
+        the Authorization Header is checked.
+        If it is present anywhere in those two places and can be associated with a user account, self.current_user
         will be overridden to the user id, meaning the user is authenticated.
         If not present or not associated with a user, self.current_user will be
         set to None, meaning no authentication is granted.
@@ -355,7 +357,7 @@ class LogoutHandler(BaseHandler):
         pass
 
     def post(self):
-        # simply remove token from the cache --> user needs to login again to proceed
+        # simply remove token from the cache and clear the cookie --> user needs to login again to proceed
         token_cache().remove(self._access_token)
 
         self.clear_cookie("access_token")
