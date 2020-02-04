@@ -1,26 +1,62 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-        <title> SSE Platform </title>
-        <!-- jQuery -->
-        <script src="https://code.jquery.com/jquery-1.12.4.min.js"
-            integrity="sha384-nvAa0+6Qg9clwYCGGPpDQLVpLNn0fRaROjHqs13t4Ggj3Ez50XnGQqc/r8MhnRDZ"
-            crossorigin="anonymous">
-        </script>
-        <!-- Bootstrap css-->
-        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
-            integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-        <!-- Bootstrap -->
-        <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"
-            integrity="sha384-aJ21OjlMXNL5UyIl/XNwTMqvzeRMZH2w8c5cRVpzpU8Y5bApTppSuUkhZXN0VxHd"
-            crossorigin="anonymous">
-        </script>
-        <!-- custom css -->
-        <link rel="stylesheet" href="/css/style.css">
-    </head>
-    <body>
-        <p class="text-center">Hello World</p>
-    </body>
+<head>
+	<link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="css/index.css">
+  <script src="https://code.jquery.com/jquery-1.12.4.min.js"
+      integrity="sha384-nvAa0+6Qg9clwYCGGPpDQLVpLNn0fRaROjHqs13t4Ggj3Ez50XnGQqc/r8MhnRDZ"
+      crossorigin="anonymous">
+  </script>
+	<title>Login to SSE-Platform</title>
+</head>
+<body>
+	<div class="align">
+    <h1> SSE Admin Platform </h1>
+		<div class="card">
+			<div class="head">
+				<div></div>
+				<a id="login" class="selected" href="#login">Login</a>
+				<a id="register" href="#register">Register</a>
+				<div></div>
+			</div>
+			<div class="tabs">
+				<form>
+					<div class="inputs">
+						<div class="input">
+							<input id=username placeholder="Username" type="text">
+							<img src="img/user.svg">
+						</div>
+						<div class="input">
+							<input id=password placeholder="Password" type="password">
+							<img src="img/pass.svg">
+						</div>
+						<label class="checkbox">
+							<input id="rememberMe" type="checkbox">
+							<span>Remember me</span>
+						</label>
+					</div>
+					<button class="login">Login</button>
+				</form>
+				<form>
+					<div class="inputs">
+						<div class="input">
+							<input id=email placeholder="Email" type="text">
+							<img src="img/mail.svg">
+						</div>
+						<div class="input">
+							<input id=newusername placeholder="Username" type="text">
+							<img src="img/user.svg">
+						</div>
+						<div class="input">
+							<input id=newpassword placeholder="Password" type="password">
+							<img src="img/pass.svg">
+						</div>
+					</div>
+					<button class="register">Register</button>
+				</form>
+			</div>
+		</div>
+	</div>
+	<script src="javascripts/login_register.js"></script>
+</body>
 </html>

@@ -1,0 +1,137 @@
+html {
+  text-align: center;
+}
+
+.logout{
+   position:fixed;
+   right:10px;
+   top:5px;
+}
+
+body {
+    font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+    margin: 0px auto;
+    text-align: center;
+}
+
+a {
+    color: #00B7FF;
+}
+
+ul {
+    padding: 0;
+}
+
+ul li{
+    list-style-type: none;
+    background: #efefef;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+ul li .edit {
+    display: none;
+}
+
+ul li.edit .edit{
+    display: initial;
+}
+
+ul li.edit .noedit {
+  display: none;
+}
+
+ul li.edit .start.running {
+  display: none;
+}
+
+ul li.edit .stop{
+  display: none;
+}
+
+ul li.edit .stop.running{
+  display: initial;
+}
+
+/**
+ * ajax loading modal with gif
+ */
+.modal {
+    display:    none;
+    position:   fixed;
+    z-index:    1000;
+    top:        0;
+    left:       0;
+    height:     100%;
+    width:      100%;
+    background: rgba( 255, 255, 255, .8 )
+                url('../img/ajax-loader.gif')
+                50% 50%
+                no-repeat;
+}
+
+body.loading .modal {
+    overflow: hidden;
+}
+
+body.loading .modal {
+    display: block;
+}
+
+.bg-modal {
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.7);
+  position: absolute;
+  top: 0;
+  justify-content: center;
+  align-items: center;
+  display: none;
+}
+
+.modal-content {
+  width: 500px;
+  height: 300px;
+  background-color: white;
+  border-radius: 4px;
+  text-align: center;
+  padding: 20px;
+  position: relative;
+}
+
+textarea {
+  width: 400px;
+  height: 250px;
+  font-size: 14px;
+  margin: auto;
+  resize: none;
+}
+
+.close {
+  position: absolute;
+  top: 0;
+  right: 14px;
+  font-size: 42px;
+  transform: rotate(45deg);
+  cursor: pointer;
+  &:hover {
+    color: #666;
+  }
+}
+
+button {
+	background-color: #1686d9;
+	border: 2px solid white;
+	border-radius: 30px;
+	text-decoration: none;
+	padding: 10px 28px;
+	color: white;
+	margin-top: 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: white;
+  color: #1686d9;
+  border: 2px solid #1686d9;
+}

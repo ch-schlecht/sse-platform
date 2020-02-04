@@ -1,7 +1,18 @@
 language: python
+python:
+    - "3.7"
+services:
+    - postgresql
 branches:
     only:
         - master
+before_script:
+    - psql -U postgres -c 'CREATE DATABASE sse;'
+    - psql -U postgres -c "CREATE USER admin WITH PASSWORD 'admin';"
+    - psql -U postgres -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO admin;'
+    - psql -U postgres -c 'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO admin;'
+    - psql -U postgres -c 'GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO admin;'
+    - echo '{"pguser":"admin","pgpassword":"admin","pghost":"localhost","pgport":5432,"pgdb":"sse"}' > config.json
 script:
     - pytest
 
