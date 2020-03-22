@@ -1,3 +1,4 @@
+PORT = 8888 # the port to run this platform in
 MODULE_DIRECTORY = "modules/"  # use for any path manipulations
 MODULE_PACKAGE = "modules."  # user for importlib
 CONFIG_PATH = "config.json"  # default, will be overridden if config is loaded from different path

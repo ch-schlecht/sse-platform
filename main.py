@@ -1,5 +1,6 @@
 import tornado.ioloop
 import tornado.web
+import tornado.websocket
 import tornado.locks
 import bcrypt
 import importlib
@@ -230,12 +231,12 @@ class ExecutionHandler(BaseHandler):
                     # starting the module application
                     # TODO consider ssl (or use global ssl certs from platform?)
                     # TODO maybe wrap in try/except to suggest succes to user (for now just returns True)
-                    module_config = get_config_path(module_to_start)
-                    module.apply_config(module_config)  # function implemented by module
                     module_config_path = get_config_path(module_to_start)
-                    with open(module_config_path) as json_file:
-                        module_config = json.load(json_file)
-                    module.apply_config(module_config)   # function implemented by module
+                    if module_config_path:
+                        with open(module_config_path) as json_file:
+                            module_config = json.load(json_file)
+                        module.apply_config(module_config)   # function implemented by module
+                    module.inherit_platform_port(CONSTANTS.PORT)  # function implemented by module
                     module_app = module.make_app()  # function implemented by module
 
                     module_server = tornado.httpserver.HTTPServer(module_app,
@@ -422,6 +423,55 @@ class RegisterHandler(BaseHandler):
                         "access_token": access_token})
 
 
+dummy_users = {
+    "test_user1": {
+        "user_id": 1,
+        "username": "test_user1",
+        "email": "test_user1@mail.com"
+    },
+    "test_user2": {
+        "user_id": 2,
+        "username": "test_user2",
+        "email": "test_user2@mail.com"
+    },
+    "test_user3": {
+        "user_id": 3,
+        "username": "test_user3",
+        "email": "test_user3@mail.com"
+    }
+}
+
+
+class WebsocketHandler(tornado.websocket.WebSocketHandler):
+
+    connections = set()
+
+    def open(self):
+        print("client connected")
+        self.connections.add(self)
+
+    async def on_message(self, message):
+        json_message = tornado.escape.json_decode(message)
+        print("got message:")
+        print(json_message)
+
+        if json_message['type'] == "get_user":
+            username = json_message['username']
+            global dummy_users
+            if username in dummy_users:
+                self.write_message({"type": "get_user_response",
+                                    "user": dummy_users[username],
+                                    "resolve_id": json_message['resolve_id']})
+
+        elif json_message['type'] == "get_user_list":
+            self.write_message({"type": "get_user_list_response",
+                                "users": dummy_users,
+                                "resolve_id": json_message['resolve_id']})
+
+    def on_close(self):
+        self.connections.remove(self)
+
+
 def shutdown_module(module_name):
     """
     Stop a module, i.e. call the stop_signal function of the module and stop the module's http server.
@@ -463,8 +513,10 @@ def make_app(dev_mode_arg):
         (r"/register", RegisterHandler),
         (r"/login", LoginHandler),
         (r"/logout", LogoutHandler),
+        (r"/websocket", WebsocketHandler),
         (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"}),
         (r"/img/(.*)", tornado.web.StaticFileHandler, {"path": "./img/"}),
+        (r"/html/(.*)", tornado.web.StaticFileHandler, {"path": "./html/"}),
         (r"/javascripts/(.*)", tornado.web.StaticFileHandler, {"path": "./javascripts/"})
     ], cookie_secret=cookie_secret)
 
@@ -505,10 +557,9 @@ async def main():
 
     app = make_app(args.dev)
     server = tornado.httpserver.HTTPServer(app, ssl_options=ssl_ctx)
-    port = 8888
-    servers['platform'] = {"server": server, "port": port}
+    servers['platform'] = {"server": server, "port": CONSTANTS.PORT}
     server_services['platform'] = {}
-    server.listen(port)
+    server.listen(CONSTANTS.PORT)
 
     shutdown_event = tornado.locks.Event()
     await shutdown_event.wait()
