@@ -237,7 +237,7 @@ class ExecutionHandler(BaseHandler):
                             module_config = json.load(json_file)
                         module.apply_config(module_config)   # function implemented by module
                     module.inherit_platform_port(CONSTANTS.PORT)  # function implemented by module
-                    module_app = module.make_app()  # function implemented by module
+                    module_app = module.make_app(True)  # function implemented by module
 
                     module_server = tornado.httpserver.HTTPServer(module_app,
                                                                   no_keep_alive=True)  # need no-keep-alive to be able to stop server
