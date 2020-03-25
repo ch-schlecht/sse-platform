@@ -37,7 +37,7 @@ class Token_Cache:
     def __init__(self):
         self._data = {}
 
-    def insert(self, token, user_id):
+    def insert(self, token, user_id, username, email):
         """
         Inserts a new token into the cache, which is associated with the user behind the `user_id`.
         The global time to live is one hour, which can be adjusted to your needs in the CONSTANTS file.
@@ -50,7 +50,7 @@ class Token_Cache:
 
         """
         self._remove_expired()
-        cache_obj = {"user_id": user_id, "expires": datetime.now() + timedelta(seconds=TOKEN_TTL)}
+        cache_obj = {"user_id": user_id, "username": username, "email": email, "expires": datetime.now() + timedelta(seconds=TOKEN_TTL)}
         self._data[token] = cache_obj
         print("inserted into cache: ")
         print(cache_obj)

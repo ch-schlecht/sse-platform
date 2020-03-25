@@ -1,10 +1,14 @@
+import sys
+import asyncio
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
 import tornado.locks
 import bcrypt
 import importlib
-import sys
 import json
 import argparse
 import ssl
@@ -14,13 +18,15 @@ from CONSTANTS import MODULE_PACKAGE
 from github_access import list_modules, clone
 from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config, \
     determine_free_port
-from db_access import initialize_db, queryone, user_exists, NoResultError
+from db_access import initialize_db, queryone, query, user_exists, NoResultError
 from token_cache import token_cache
 from base64 import b64encode
 
 servers = {}
 server_services = {}
 dev_mode = False
+
+cookie_secret = b64encode(os.urandom(32)).decode("utf-8")  # 32 byte random string
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -238,6 +244,8 @@ class ExecutionHandler(BaseHandler):
                         module.apply_config(module_config)   # function implemented by module
                     module.inherit_platform_port(CONSTANTS.PORT)  # function implemented by module
                     module_app = module.make_app(True)  # function implemented by module
+                    global cookie_secret
+                    module_app.settings["cookie_secret"] = cookie_secret
 
                     module_server = tornado.httpserver.HTTPServer(module_app,
                                                                   no_keep_alive=True)  # need no-keep-alive to be able to stop server
@@ -323,6 +331,8 @@ class LoginHandler(BaseHandler):
                         "reason": "user_not_found",
                         "redirect_suggestions": ["/login", "/register"]})
             self.flush()
+            self.finish()
+            return
 
         # check passwords match
         password_validated = await tornado.ioloop.IOLoop.current().run_in_executor(
@@ -336,9 +346,17 @@ class LoginHandler(BaseHandler):
             # generate token, store and return it
             access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
 
-            token_cache().insert(access_token, user['id'])
+            token_cache().insert(access_token, user['id'], user["name"], user["email"])
 
-            self.set_secure_cookie("access_token", access_token)
+            self.set_secure_cookie("access_token", access_token, domain="localhost")
+
+            # broadcast user login to modules
+            data = {"type": "user_login",
+                    "username": user["name"],
+                    "email": user["email"],
+                    "id": user["id"],
+                    "access_token": access_token}
+            tornado.ioloop.IOLoop.current().add_callback(WebsocketHandler.broadcast_message, data)
 
             self.set_status(200)
             self.write({"status": 200,
@@ -360,6 +378,10 @@ class LogoutHandler(BaseHandler):
     def post(self):
         # simply remove token from the cache and clear the cookie --> user needs to login again to proceed
         token_cache().remove(self._access_token)
+
+        data = {"type": "user_logout",
+                "access_token": self._access_token}
+        tornado.ioloop.IOLoop.current().add_callback(WebsocketHandler.broadcast_message, data)
 
         self.clear_cookie("access_token")
 
@@ -404,6 +426,8 @@ class RegisterHandler(BaseHandler):
                         "reason": "username_already_exists",
                         "redirect_suggestions": ["/login"]})
             self.flush()
+            self.finish()
+            return
         else:
             # save user, generate token, store and return it
             result = await queryone("INSERT INTO users (email, name, hashed_password, role) \
@@ -413,33 +437,22 @@ class RegisterHandler(BaseHandler):
 
             access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
 
-            token_cache().insert(access_token, user_id)
+            token_cache().insert(access_token, user_id, nickname, email)
 
             self.set_secure_cookie("access_token", access_token)
+
+            # broadcast user login to modules
+            data = {"type": "user_login",
+                    "username": nickname,
+                    "email": email,
+                    "id": user_id,
+                    "access_token": access_token}
+            tornado.ioloop.IOLoop.current().add_callback(WebsocketHandler.broadcast_message, data)
 
             self.set_status(200)
             self.write({"status": 200,
                         "success": True,
                         "access_token": access_token})
-
-
-dummy_users = {
-    "test_user1": {
-        "user_id": 1,
-        "username": "test_user1",
-        "email": "test_user1@mail.com"
-    },
-    "test_user2": {
-        "user_id": 2,
-        "username": "test_user2",
-        "email": "test_user2@mail.com"
-    },
-    "test_user3": {
-        "user_id": 3,
-        "username": "test_user3",
-        "email": "test_user3@mail.com"
-    }
-}
 
 
 class WebsocketHandler(tornado.websocket.WebSocketHandler):
@@ -457,19 +470,45 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
 
         if json_message['type'] == "get_user":
             username = json_message['username']
-            global dummy_users
-            if username in dummy_users:
-                self.write_message({"type": "get_user_response",
-                                    "user": dummy_users[username],
-                                    "resolve_id": json_message['resolve_id']})
+            user = await queryone("SELECT id, email, name AS username, role FROM users WHERE name = %s", username)
+            print(user)
+            self.write_message({"type": "get_user_response",
+                                "user": user,
+                                "resolve_id": json_message['resolve_id']})
 
         elif json_message['type'] == "get_user_list":
+            users = await query("SELECT id, email, name AS username, role FROM users")
+            print(users)
+            ret_format = {}
+            for user in users:
+                ret_format[user["username"]] = user
             self.write_message({"type": "get_user_list_response",
-                                "users": dummy_users,
+                                "users": ret_format,
                                 "resolve_id": json_message['resolve_id']})
+        elif json_message["type"] == "token_validation":
+            validated_user = token_cache().get(json_message["access_token"])
+            if validated_user is not None:
+                self.write_message({"type": "token_validation_response",
+                                    "success": True,
+                                    "user": {
+                                        "username": validated_user["username"],
+                                        "email": validated_user["email"],
+                                        "user_id": validated_user["user_id"],
+                                        "expires": str(validated_user["expires"])
+                                    },
+                                    "resolve_id": json_message["resolve_id"]})
+            else:
+                self.write_message({"type": "token_validation_response",
+                                    "success": False,
+                                    "resolve_id": json_message["resolve_id"]})
 
     def on_close(self):
         self.connections.remove(self)
+
+    @classmethod
+    def broadcast_message(cls, message):
+        for client in cls.connections:
+            client.write_message(message)
 
 
 def shutdown_module(module_name):
@@ -503,7 +542,7 @@ def make_app(dev_mode_arg):
         global dev_mode
         dev_mode = True
 
-    cookie_secret = b64encode(os.urandom(32)).decode("utf-8")  # 32 byte random string
+    global cookie_secret
 
     return tornado.web.Application([
         (r"/main", MainHandler),

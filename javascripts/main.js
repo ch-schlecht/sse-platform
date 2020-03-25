@@ -31,7 +31,7 @@ $(document).on({
 $('.logout').click(function () {
   console.log('clicked');
   $.ajax({
-    type: 'GET',
+    type: 'POST',
     url: baseUrl + '/logout',
     success: function (data) {
       window.location.href = loginURL;
@@ -208,7 +208,7 @@ $modules.delegate('.start', 'click', function () {
           if (module.reason !== 'already_running') {
             $li.children('p').append('<span id="port"> running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + '>' + module.port + '</a></span>');
 
-            var win = window.open('' + newTabUrl + ':' + module.port, '_blank');
+            var win = window.open('' + newTabUrl + ':' + module.port + "/main", '_blank');
             if (win) {
               win.focus();
             } else {
