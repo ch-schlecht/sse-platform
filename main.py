@@ -277,14 +277,18 @@ class ExecutionHandler(BaseHandler):
                 module_to_stop = self.get_argument("module_name", None)
                 shutdown_module(module_to_stop)
             elif slug == "running":
-
+                data = {}
+                for module_name in servers.keys():
+                    data[module_name] = {"port": servers[module_name]["port"]}
+                self.set_status(200)
+                self.write({"running_modules": data})
                 # show running things, and its config
-                for i in server_services:
-                    print(i)
+                #for i in server_services:
+                #    print(i)
 
-                    data['server_services'] = server_services
+                #    data['server_services'] = server_services
 
-                self.render('templates/exe.html', data=data)
+                #self.render('templates/exe.html', data=data)
 
         else:
             self.set_status(401)
