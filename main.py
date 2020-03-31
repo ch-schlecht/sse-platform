@@ -67,6 +67,9 @@ class BaseHandler(tornado.web.RequestHandler):
         else:
             self.current_user = -1
 
+    def get(self):
+        self.redirect("/main")
+
 
 class MainHandler(BaseHandler):
     """
@@ -82,10 +85,7 @@ class MainHandler(BaseHandler):
         if self.current_user:
             self.render("main.html")
         else:
-            self.set_status(401)
-            self.write({"status": 401,
-                        "reason": "no_token",
-                        "redirect_suggestions": ["/login"]})
+            self.redirect("/login")
 
 
 class ModuleHandler(BaseHandler):
@@ -248,7 +248,7 @@ class ExecutionHandler(BaseHandler):
                     module_app.settings["cookie_secret"] = cookie_secret
 
                     module_server = tornado.httpserver.HTTPServer(module_app,
-                                                                  no_keep_alive=True)  # need no-keep-alive to be able to stop server
+                                                                  no_keep_alive=False)  # need no-keep-alive to be able to stop server
                     port = determine_free_port()
 
                     servers[module_to_start] = {"server": module_server, "port": port}
@@ -549,6 +549,7 @@ def make_app(dev_mode_arg):
     global cookie_secret
 
     return tornado.web.Application([
+        (r"/", BaseHandler),
         (r"/main", MainHandler),
         (r"/modules/([a-zA-Z\-0-9\.:,_]+)", ModuleHandler),
         (r"/configs/([a-zA-Z\-0-9\.:,_]+)", ConfigHandler),
