@@ -15,6 +15,18 @@ var modulesTemplate =    '' +
           '</li>';
 var $body = $('body');
 
+
+/**
+ * on page load - get all available and installed modules
+ * add installed modules to list
+ */
+$(function () {
+    getInstalledModules();
+    getAvailableModules();
+    getRunningModules();
+});
+
+
 /**
  * add or removes class 'loading' on ajax request
  */
@@ -82,51 +94,94 @@ function addModuleAvailable(module) {
 }
 
 /**
- * on page load - get all available and installed modules
- * add installed modules to list
+ * getInstalledModules - on success add modules to List and display HTML
+ * calls addModuleInstalled
  */
-$(function () {
-      $.ajax({
-        type: 'GET',
-        url: baseUrl + '/modules/list_installed',
-        dataType: 'json',
-        success: function (modules) {
-          $.each(modules.installed_modules, function (i, module) {
-            modulesInstalledList.push(module);
-            addModuleInstalled(module);
-          });
-        },
-
-        error: function (xhr, status, error) {
-          alert('error loading installed modules');
-          console.log(error);
-          console.log(status);
-          console.log(xhr);
-        },
+function getInstalledModules(){
+  $.ajax({
+    type: 'GET',
+    url: baseUrl + '/modules/list_installed',
+    dataType: 'json',
+    success: function (modules) {
+      $.each(modules.installed_modules, function (i, module) {
+        modulesInstalledList.push(module);
+        addModuleInstalled(module);
       });
+    },
 
-      $.ajax({
-        type: 'GET',
-        url: baseUrl + '/modules/list_available',
-        dataType: 'json',
-        success: function (modules) {
-          $.each(modules.modules, function (i, module) {
-            addModuleAvailable(module);
-          });
-        },
+    error: function (xhr, status, error) {
+      alert('error loading installed modules');
+      console.log(error);
+      console.log(status);
+      console.log(xhr);
+    },
+  });
+}
 
-        error: function (xhr, status, error) {
-          if (xhr.status == 401) {
-            window.location.href = loginURL;
-          } else {
-            alert('error loading available modules');
-            console.log(error);
-            console.log(status);
-            console.log(xhr);
+/**
+ * getRunningModules - display if a module already runs on a port 
+ * on success display HTML and add running class to elements
+ */
+function getRunningModules(){
+  $.ajax({
+    type: 'GET',
+    url: baseUrl + '/execution/running',
+    dataType: 'json',
+    success: function (data) {
+
+        $.each(data.running_modules, function (i, module) {
+          var $li = $body.find('li[name=' + i + ']');
+          var $start = $body.find('button#' + i + '.start');
+          var $stop = $body.find('button#' + i + '.stop');
+          try {
+            tailUrl = '';
+            //modify URL if its SocialServ
+            if(i == 'SocialServ') tailUrl = '/main';
+            $li.children('p').append('<span id="port"> already running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + tailUrl + '>' + module.port + '</a></span>');
+          } catch (e) {
+            $li.children('p').append('<span id="port"> already running on a port </span>');
           }
-        },
+
+          $start.addClass('running');
+          $stop.addClass('running');
+        });
+    },
+
+    error: function (xhr, status, error) {
+      alert('error loading running modules');
+      console.log(error);
+      console.log(status);
+      console.log(xhr);
+    },
+  });
+}
+/**
+ * getAvailableModules - on success displays html
+ * calls addModuleAvailable
+ */
+function getAvailableModules(){
+  $.ajax({
+    type: 'GET',
+    url: baseUrl + '/modules/list_available',
+    dataType: 'json',
+    success: function (modules) {
+      $.each(modules.modules, function (i, module) {
+        addModuleAvailable(module);
       });
-    });
+    },
+
+    error: function (xhr, status, error) {
+      if (xhr.status == 401) {
+        window.location.href = loginURL;
+      } else {
+        alert('error loading available modules');
+        console.log(error);
+        console.log(status);
+        console.log(xhr);
+      }
+    },
+  });
+}
 
 /**
  * on download click - download module and add it to installed-list
@@ -215,13 +270,13 @@ $modules.delegate('.start', 'click', function () {
               alert('Please allow popups for this page.');
             }
 
-          } else {
+          } /*else {
             try {
               $li.children('p').append('<span id="port"> already running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + '>' + module.port + '</a></span>');
             } catch (e) {
               $li.children('p').append('<span id="port"> already running on a port </span>');
             }
-          }
+          }*/
 
           $start.addClass('running');
           $stop.addClass('running');
