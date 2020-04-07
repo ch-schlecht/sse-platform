@@ -110,8 +110,14 @@ class ModuleHandler(BaseHandler):
 
         if slug == "list_available":  # list all available modules
             modules = list_modules()
-            self.write({'type': 'list_available_modules',
-                        'modules': modules})
+            if modules:
+                self.write({'type': 'list_available_modules',
+                            'modules': modules,
+                            'success': True})
+            else:
+                self.write({'type': 'list_available_modules',
+                            'success': False,
+                            'reason': 'no_github_api_connection'})
 
         elif slug == "list_installed":  # list istalled modules
             if self.current_user:
@@ -130,9 +136,15 @@ class ModuleHandler(BaseHandler):
                                                        None)  # TODO handle input of wrong module name (BaseModule?)
                 print("Installing Module: " + module_to_download)
                 success = clone(module_to_download)  # download module
-                self.write({'type': 'installation_response',
-                            'module': module_to_download,
-                            'success': success})
+                if success:
+                    self.write({'type': 'installation_response',
+                                'module': module_to_download,
+                                'success': success})
+                else:
+                    self.write({'type': 'installation_response',
+                                'module': module_to_download,
+                                'success': success,
+                                'reason': 'no_github_api_connection'})
             else:
                 self.set_status(401)
                 self.write({"status": 401,
