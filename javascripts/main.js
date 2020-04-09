@@ -119,7 +119,7 @@ function getInstalledModules(){
 }
 
 /**
- * getRunningModules - display if a module already runs on a port 
+ * getRunningModules - display if a module already runs on a port
  * on success display HTML and add running class to elements
  */
 function getRunningModules(){
