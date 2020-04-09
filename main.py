@@ -120,7 +120,7 @@ class ModuleHandler(BaseHandler):
                             'reason': 'no_github_api_connection'})
 
         elif slug == "list_installed":  # list istalled modules
-            if self.current_user and (await is_admin(self.current_user)):
+            if self.current_user:
                 modules = list_installed_modules()
                 self.write({'type': 'list_installed_modules',
                             'installed_modules': modules})

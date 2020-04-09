@@ -4,6 +4,7 @@ var newTabUrl = 'http://localhost';
 var loginURL = 'https://localhost:8888/login';
 var $modules = $('#modules');
 var modulesInstalledList = [];
+var userRole = '';
 var modulesTemplate =    '' +
        '<li name={{name}}>' +
             '<p><strong>{{name}}</strong></p>' +
@@ -21,12 +22,34 @@ var $body = $('body');
  * add installed modules to list
  */
 $(document).ready(function() {
-    getInstalledModules();
-    getAvailableModules();
-    getRunningModules();
+    $.when(getUserRole(), getInstalledModules(),getAvailableModules(), getRunningModules()).done(function(a1, a2, a3, a4){
+      if(userRole != "admin"){
+        $('.download').hide();
+        $('.uninstall').hide();
+        $('.config').hide();
+        $('.start').hide();
+        $('.stop').hide();
+      }
+    });
 });
 
+function getUserRole(){
+  $.ajax({
+    type: 'GET',
+    url: baseUrl + '/roles',
+    dataType: 'json',
+    success: function (data) {
+      userRole = data.role;
+    },
 
+    error: function (xhr, status, error) {
+      alert('error loading user role');
+      console.log(error);
+      console.log(status);
+      console.log(xhr);
+    },
+  });
+}
 /**
  * add or removes class 'loading' on ajax request
  */
@@ -87,9 +110,6 @@ function addModuleAvailable(module) {
     $modules.append(Mustache.render(modulesTemplate, { name: '' + module + '' }));
     $('[data-id=' + module + ']').addClass('noedit');
     $('[id=' + module + ']').addClass('edit');
-
-    //get element with module id and start class
-    //$('#' + module + '.start').addClass('running');
   }
 }
 
@@ -98,7 +118,7 @@ function addModuleAvailable(module) {
  * calls addModuleInstalled
  */
 function getInstalledModules(){
-  $.ajax({
+  return $.ajax({
     type: 'GET',
     url: baseUrl + '/modules/list_installed',
     dataType: 'json',
@@ -123,28 +143,33 @@ function getInstalledModules(){
  * on success display HTML and add running class to elements
  */
 function getRunningModules(){
-  $.ajax({
+  return $.ajax({
     type: 'GET',
     url: baseUrl + '/execution/running',
     dataType: 'json',
     success: function (data) {
 
-        $.each(data.running_modules, function (i, module) {
-          var $li = $body.find('li[name=' + i + ']');
-          var $start = $body.find('button#' + i + '.start');
-          var $stop = $body.find('button#' + i + '.stop');
-          try {
-            tailUrl = '';
-            //modify URL if its SocialServ
-            if(i == 'SocialServ') tailUrl = '/main';
-            $li.children('p').append('<span id="port"> already running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + tailUrl + '>' + module.port + '</a></span>');
-          } catch (e) {
-            $li.children('p').append('<span id="port"> already running on a port </span>');
-          }
+      $.each(data.running_modules, function (i, module) {
+        /*
+        if(userRole !== 'admin'){
+          $modules.append('<li name=' + module.name + '>' +
+               '<p><strong>'+ module.name +'</strong></p></li>');
+        }*/
+        var $li = $body.find('li[name=' + i + ']');
+        var $start = $body.find('button#' + i + '.start');
+        var $stop = $body.find('button#' + i + '.stop');
+        try {
+          tailUrl = '';
+          //modify URL if its SocialServ
+          if(i == 'SocialServ' || i == 'chatsystem') tailUrl = '/main';
+          $li.children('p').append('<span id="port"> already running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + tailUrl + '>' + module.port + '</a></span>');
+        } catch (e) {
+          $li.children('p').append('<span id="port"> already running on a port </span>');
+        }
 
-          $start.addClass('running');
-          $stop.addClass('running');
-        });
+        $start.addClass('running');
+        $stop.addClass('running');
+      });
     },
 
     error: function (xhr, status, error) {
@@ -160,7 +185,7 @@ function getRunningModules(){
  * calls addModuleAvailable
  */
 function getAvailableModules(){
-  $.ajax({
+   return $.ajax({
     type: 'GET',
     url: baseUrl + '/modules/list_available',
     dataType: 'json',
@@ -317,11 +342,6 @@ $modules.delegate('.stop', 'click', function () {
       var $stop = $(this);
       var $start = $('#' + $(this).attr('id') + '.start');
       var $port = $p.children('#port');
-
-      // if ajax works this can be removed
-      $(this).removeClass('running');
-      $('#' + $(this).attr('id') + '.start').removeClass('running');
-      $port.remove();
       $.ajax({
         type: 'GET',
         url: baseUrl + '/execution/stop?module_name=' + $(this).attr('id'),
