@@ -18,7 +18,7 @@ from CONSTANTS import MODULE_PACKAGE
 from github_access import list_modules, clone
 from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config, \
     determine_free_port
-from db_access import initialize_db, queryone, query, user_exists, NoResultError
+from db_access import initialize_db, queryone, query, user_exists, NoResultError, is_admin
 from token_cache import token_cache
 from base64 import b64encode
 
@@ -94,7 +94,7 @@ class ModuleHandler(BaseHandler):
 
     """
 
-    def get(self, slug):
+    async def get(self, slug):
         """
         GET Request of /modules/[slug]
 
@@ -120,7 +120,7 @@ class ModuleHandler(BaseHandler):
                             'reason': 'no_github_api_connection'})
 
         elif slug == "list_installed":  # list istalled modules
-            if self.current_user:
+            if self.current_user and (await is_admin(self.current_user)):
                 modules = list_installed_modules()
                 self.write({'type': 'list_installed_modules',
                             'installed_modules': modules})
@@ -131,7 +131,7 @@ class ModuleHandler(BaseHandler):
                             "redirect_suggestions": ["/login"]})
 
         elif slug == "download":  # download module given by query param 'name'
-            if self.current_user:
+            if self.current_user and (await is_admin(self.current_user)):
                 module_to_download = self.get_argument('module_name',
                                                        None)  # TODO handle input of wrong module name (BaseModule?)
                 print("Installing Module: " + module_to_download)
@@ -152,7 +152,7 @@ class ModuleHandler(BaseHandler):
                             "redirect_suggestions": ["/login"]})
 
         elif slug == "uninstall":  # uninstall module given by query param 'name'
-            if self.current_user:
+            if self.current_user and (await is_admin(self.current_user)):
                 module_to_uninstall = self.get_argument('module_name', None)
 
                 # check the module is not running, and if, stop it before uninstalling
@@ -177,14 +177,14 @@ class ConfigHandler(BaseHandler):
 
     """
 
-    def get(self, slug):
+    async def get(self, slug):
         """
         GET request of /configs/view
             query param: 'module_name'
                 get the config of the module given by module_name
 
         """
-        if self.current_user:
+        if self.current_user and (await is_admin(self.current_user)):
             if slug == "view":
                 module = self.get_argument("module_name", None)  # TODO handle input of wrong module name
                 config_path = get_config_path(module)
@@ -198,7 +198,7 @@ class ConfigHandler(BaseHandler):
                         "reason": "no_token",
                         "redirect_suggestions": ["/login"]})
 
-    def post(self, slug):
+    async def post(self, slug):
         """
         POST request of /configs/update
             query param: 'module_name'
@@ -206,7 +206,7 @@ class ConfigHandler(BaseHandler):
                 changes the config of the module given by module_name to the json in the http body
 
         """
-        if self.current_user:
+        if self.current_user and (await is_admin(self.current_user)):
             if slug == "update":
                 module = self.get_argument("module_name", None)  # TODO handle input of wrong module name
                 config_path = get_config_path(module)
@@ -225,7 +225,7 @@ class ExecutionHandler(BaseHandler):
 
     """
 
-    def get(self, slug):
+    async def get(self, slug):
         """
         GET request of /execution/[slug]
 
@@ -239,55 +239,57 @@ class ExecutionHandler(BaseHandler):
         if self.current_user:
             data = {}
             if slug == "start":
-                module_to_start = self.get_argument("module_name", None)
-                if module_to_start not in servers:
-                    spec = importlib.util.find_spec(".main", MODULE_PACKAGE + module_to_start)
-                    module = importlib.util.module_from_spec(spec)
-                    sys.modules[module_to_start] = module
-                    spec.loader.exec_module(module)
+                if (await is_admin(self.current_user)):
+                    module_to_start = self.get_argument("module_name", None)
+                    if module_to_start not in servers:
+                        spec = importlib.util.find_spec(".main", MODULE_PACKAGE + module_to_start)
+                        module = importlib.util.module_from_spec(spec)
+                        sys.modules[module_to_start] = module
+                        spec.loader.exec_module(module)
 
-                    # starting the module application
-                    # TODO consider ssl (or use global ssl certs from platform?)
-                    # TODO maybe wrap in try/except to suggest succes to user (for now just returns True)
-                    module_config_path = get_config_path(module_to_start)
-                    if module_config_path:
-                        with open(module_config_path) as json_file:
-                            module_config = json.load(json_file)
-                        module.apply_config(module_config)   # function implemented by module
-                    module.inherit_platform_port(CONSTANTS.PORT)  # function implemented by module
-                    module_app = module.make_app(True)  # function implemented by module
-                    global cookie_secret
-                    module_app.settings["cookie_secret"] = cookie_secret
+                        # starting the module application
+                        # TODO consider ssl (or use global ssl certs from platform?)
+                        # TODO maybe wrap in try/except to suggest succes to user (for now just returns True)
+                        module_config_path = get_config_path(module_to_start)
+                        if module_config_path:
+                            with open(module_config_path) as json_file:
+                                module_config = json.load(json_file)
+                            module.apply_config(module_config)   # function implemented by module
+                        module.inherit_platform_port(CONSTANTS.PORT)  # function implemented by module
+                        module_app = module.make_app(True)  # function implemented by module
+                        global cookie_secret
+                        module_app.settings["cookie_secret"] = cookie_secret
 
-                    module_server = tornado.httpserver.HTTPServer(module_app,
-                                                                  no_keep_alive=False)  # need no-keep-alive to be able to stop server
-                    port = determine_free_port()
+                        module_server = tornado.httpserver.HTTPServer(module_app,
+                                                                      no_keep_alive=False)  # need no-keep-alive to be able to stop server
+                        port = determine_free_port()
 
-                    servers[module_to_start] = {"server": module_server, "port": port}
+                        servers[module_to_start] = {"server": module_server, "port": port}
 
-                    # set services
-                    if hasattr(module, 'get_services') and callable(getattr(module, 'get_services')):
-                        ii = module.get_services()
-                        server_services[module_to_start] = {"port": port, "service": ii}
+                        # set services
+                        if hasattr(module, 'get_services') and callable(getattr(module, 'get_services')):
+                            ii = module.get_services()
+                            server_services[module_to_start] = {"port": port, "service": ii}
 
+                        else:
+                            server_services[module_to_start] = {"port": port, "service": {}}
+
+                        module_server.listen(port)
+                        self.write({'type': 'starting_response',
+                                    'module': module_to_start,
+                                    'success': True,
+                                    'port': port})
                     else:
-                        server_services[module_to_start] = {"port": port, "service": {}}
-
-                    module_server.listen(port)
-                    self.write({'type': 'starting_response',
-                                'module': module_to_start,
-                                'success': True,
-                                'port': port})
-                else:
-                    print("module already running, starting denied. stop module first")
-                    self.write({'type': 'starting_response',
-                                'module': module_to_start,
-                                'port': servers[module_to_start]['port'],
-                                'success': False,
-                                'reason': 'already_running'})
+                        print("module already running, starting denied. stop module first")
+                        self.write({'type': 'starting_response',
+                                    'module': module_to_start,
+                                    'port': servers[module_to_start]['port'],
+                                    'success': False,
+                                    'reason': 'already_running'})
             elif slug == "stop":
-                module_to_stop = self.get_argument("module_name", None)
-                shutdown_module(module_to_stop)
+                if (await is_admin(self.current_user)):
+                    module_to_stop = self.get_argument("module_name", None)
+                    shutdown_module(module_to_stop)
             elif slug == "running":
                 data = {}
                 for module_name in servers.keys():
@@ -471,6 +473,21 @@ class RegisterHandler(BaseHandler):
                         "access_token": access_token})
 
 
+class RoleHandler(BaseHandler):
+
+    async def get(self):
+        if self.current_user:
+            result = await queryone("SELECT role FROM users WHERE id=%s", self.current_user)
+            self.set_status(200)
+            self.write({"type": "permission_response",
+                        "role": result["role"]})
+        else:
+            self.set_status(401)
+            self.write({"status": 401,
+                        "reason": "no_token",
+                        "redirect_suggestions": ["/login"]})
+
+
 class WebsocketHandler(tornado.websocket.WebSocketHandler):
 
     connections = set()
@@ -569,6 +586,7 @@ def make_app(dev_mode_arg):
         (r"/register", RegisterHandler),
         (r"/login", LoginHandler),
         (r"/logout", LogoutHandler),
+        (r"/roles", RoleHandler),
         (r"/websocket", WebsocketHandler),
         (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"}),
         (r"/img/(.*)", tornado.web.StaticFileHandler, {"path": "./img/"}),

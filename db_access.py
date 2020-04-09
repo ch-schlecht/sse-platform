@@ -184,3 +184,16 @@ async def user_exists(username):
 
     """
     return bool(await query('SELECT * FROM users WHERE name=%s', username))
+
+
+async def is_admin(user_id):
+    try:
+        result = await queryone("SELECT role FROM users where id=%s", user_id)
+        print(result)
+        if result["role"] == "admin":
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(e)
+        return False
