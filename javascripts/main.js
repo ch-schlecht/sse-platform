@@ -20,7 +20,7 @@ var $body = $('body');
  * on page load - get all available and installed modules
  * add installed modules to list
  */
-$(function () {
+$(document).ready(function() {
     getInstalledModules();
     getAvailableModules();
     getRunningModules();
@@ -165,9 +165,15 @@ function getAvailableModules(){
     url: baseUrl + '/modules/list_available',
     dataType: 'json',
     success: function (modules) {
-      $.each(modules.modules, function (i, module) {
-        addModuleAvailable(module);
-      });
+      if(modules.success == true){
+        $.each(modules.modules, function (i, module) {
+          addModuleAvailable(module);
+        });
+      }
+      else{
+        console.log("error: " + modules.reason);
+        alert("Could not connect to Github API");
+      }
     },
 
     error: function (xhr, status, error) {
@@ -194,8 +200,14 @@ $modules.delegate('.download', 'click', function () {
       url: baseUrl + '/modules/download?module_name=' + $(this).attr('data-id'),
       dataType: 'json',
       success: function (module) {
-        modulesInstalledList.push(module.module);
-        $li.addClass('edit');
+        if(module.success == true){
+          modulesInstalledList.push(module.module);
+          $li.addClass('edit');
+        }
+        else{
+          console.log("error: " + module.reason);
+          alert("installation failure");
+        }
       },
 
       error: function (xhr, status, error) {
