@@ -81,7 +81,7 @@ function login() {
 
 	$.ajax({
 		type: 'POST',
-		url: baseUrl + '/login?nickname=' + username + '&password=' + password,
+		url: '/login?nickname=' + username + '&password=' + password,
 		success: function (data) {
 			loadMainPage();
 		},
@@ -113,7 +113,7 @@ function register() {
   if (validateEmail(mail)) {
 		$.ajax({
 			type: 'POST',
-			url: baseUrl + '/register?email=' + mail + '&nickname=' + username + '&password=' + password,
+			url: '/register?email=' + mail + '&nickname=' + username + '&password=' + password,
 			success: function (data) {
 				alert('Registered successfully.');
 				loadMainPage();
@@ -152,7 +152,7 @@ function loadMainPage() {
 
 	$.ajax({
 		type: 'GET',
-		url: baseUrl + '/main',
+		url: '/main',
 
 		success: function (data) {
 			setTimeout(function() {
