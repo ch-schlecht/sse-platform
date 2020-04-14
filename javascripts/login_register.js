@@ -156,7 +156,7 @@ function loadMainPage() {
 
 		success: function (data) {
 			setTimeout(function() {
-				window.location.href = baseUrl + '/main';
+				window.location.href = '/main';
 			}, 333);
 		},
 
