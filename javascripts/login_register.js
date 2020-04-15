@@ -1,6 +1,6 @@
 
-var baseUrl = 'https://localhost:8888';
-var newTabUrl = 'https://localhost';
+var baseUrl = window.location.origin;
+var newTabUrl= baseUrl.replace('s','').substr(0, baseUrl.lastIndexOf(':')-1);
 var $body = $('body');
 /**
  * on tabchange- adds or removes selected class from tab

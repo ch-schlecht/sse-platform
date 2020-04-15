@@ -1,7 +1,7 @@
 
-var baseUrl = 'https://localhost:8888';
-var newTabUrl = 'http://localhost';
-var loginURL = 'https://localhost:8888/login';
+var baseUrl = window.location.origin;
+var newTabUrl= baseUrl.replace('s','').substr(0, baseUrl.lastIndexOf(':')-1);
+var loginURL = baseUrl + '/login';
 var $modules = $('#modules');
 var modulesInstalledList = [];
 var userRole = '';
@@ -22,15 +22,17 @@ var $body = $('body');
  * add installed modules to list
  */
 $(document).ready(function() {
-    $.when(getUserRole(), getInstalledModules(),getAvailableModules(), getRunningModules()).done(function(a1, a2, a3, a4){
-      if(userRole != "admin"){
+    getUserRole();
+    getInstalledModules();
+    getAvailableModules();
+    getRunningModules();
+    if(userRole != "admin"){
         $('.download').hide();
         $('.uninstall').hide();
         $('.config').hide();
         $('.start').hide();
         $('.stop').hide();
-      }
-    });
+    }
 });
 
 function getUserRole(){
@@ -38,6 +40,7 @@ function getUserRole(){
     type: 'GET',
     url: '/roles',
     dataType: 'json',
+    async: false,
     success: function (data) {
       userRole = data.role;
     },
@@ -122,6 +125,7 @@ function getInstalledModules(){
     type: 'GET',
     url: '/modules/list_installed',
     dataType: 'json',
+    async: false,
     success: function (modules) {
       $.each(modules.installed_modules, function (i, module) {
         modulesInstalledList.push(module);
@@ -147,6 +151,7 @@ function getRunningModules(){
     type: 'GET',
     url: '/execution/running',
     dataType: 'json',
+    async: false,
     success: function (data) {
 
       $.each(data.running_modules, function (i, module) {
@@ -162,9 +167,9 @@ function getRunningModules(){
           tailUrl = '';
           //modify URL if its SocialServ
           if(i == 'SocialServ' || i == 'chatsystem') tailUrl = '/main';
-          $li.children('p').append('<span id="port"> already running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + tailUrl + '>' + module.port + '</a></span>');
+          $li.children('p').append('<span id="port"> running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + tailUrl + '>' + module.port + '</a></span>');
         } catch (e) {
-          $li.children('p').append('<span id="port"> already running on a port </span>');
+          $li.children('p').append('<span id="port"> running on a port </span>');
         }
 
         $start.addClass('running');
@@ -189,6 +194,7 @@ function getAvailableModules(){
     type: 'GET',
     url: '/modules/list_available',
     dataType: 'json',
+    async: false,
     success: function (modules) {
       if(modules.success == true){
         $.each(modules.modules, function (i, module) {
@@ -293,12 +299,12 @@ $modules.delegate('.start', 'click', function () {
         url: '/execution/start?module_name=' + $(this).attr('id'),
         dataType: 'json',
         success: function (module) {
-          console.log('started');
-          console.log(module.reason);
-          console.log(module.port);
-
+          //console.log(module);
           if (module.reason !== 'already_running') {
-            $li.children('p').append('<span id="port"> running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + '>' + module.port + '</a></span>');
+            tailUrl = '';
+            //modify URL if its SocialServ or chatsystem
+            if(module.module == 'SocialServ' || module.module == 'chatsystem') tailUrl = '/main';
+            $li.children('p').append('<span id="port"> running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + tailUrl + '>' + module.port + '</a></span>');
 
             var win = window.open('' + newTabUrl + ':' + module.port + "/main", '_blank');
             if (win) {
