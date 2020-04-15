@@ -366,7 +366,7 @@ class LoginHandler(BaseHandler):
 
             token_cache().insert(access_token, user['id'], user["name"], user["email"])
 
-            self.set_secure_cookie("access_token", access_token, domain="localhost")
+            self.set_secure_cookie("access_token", access_token)
 
             # broadcast user login to modules
             data = {"type": "user_login",
