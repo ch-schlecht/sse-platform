@@ -1,10 +1,8 @@
-
 var baseUrl = window.location.origin;
 var newTabUrl= baseUrl.replace('s','').substr(0, baseUrl.lastIndexOf(':')-1);
 var loginURL = baseUrl + '/login';
 var $modules = $('#modules');
 var modulesInstalledList = [];
-var userRole = '';
 var modulesTemplate =    '' +
        '<li name={{name}}>' +
             '<p><strong>{{name}}</strong></p>' +
@@ -22,37 +20,11 @@ var $body = $('body');
  * add installed modules to list
  */
 $(document).ready(function() {
-    getUserRole();
     getInstalledModules();
     getAvailableModules();
     getRunningModules();
-    if(userRole != "admin"){
-        $('.download').hide();
-        $('.uninstall').hide();
-        $('.config').hide();
-        $('.start').hide();
-        $('.stop').hide();
-    }
 });
 
-function getUserRole(){
-  $.ajax({
-    type: 'GET',
-    url: '/roles',
-    dataType: 'json',
-    async: false,
-    success: function (data) {
-      userRole = data.role;
-    },
-
-    error: function (xhr, status, error) {
-      alert('error loading user role');
-      console.log(error);
-      console.log(status);
-      console.log(xhr);
-    },
-  });
-}
 /**
  * add or removes class 'loading' on ajax request
  */
@@ -67,7 +39,6 @@ $(document).on({
  *
  */
 $('.logout').click(function () {
-  console.log('clicked');
   $.ajax({
     type: 'POST',
     url: '/logout',
@@ -155,11 +126,6 @@ function getRunningModules(){
     success: function (data) {
 
       $.each(data.running_modules, function (i, module) {
-        /*
-        if(userRole !== 'admin'){
-          $modules.append('<li name=' + module.name + '>' +
-               '<p><strong>'+ module.name +'</strong></p></li>');
-        }*/
         var $li = $body.find('li[name=' + i + ']');
         var $start = $body.find('button#' + i + '.start');
         var $stop = $body.find('button#' + i + '.stop');

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+        <title> SSE-Platform </title>
+        <!-- jQuery -->
+        <script src="https://code.jquery.com/jquery-1.12.4.min.js"
+            integrity="sha384-nvAa0+6Qg9clwYCGGPpDQLVpLNn0fRaROjHqs13t4Ggj3Ez50XnGQqc/r8MhnRDZ"
+            crossorigin="anonymous">
+        </script>
+
+        <!-- custom css -->
+        <link rel="stylesheet" href="/css/main.css">
+    </head>
+    <body>
+        <h1> SSE-Platform </h1>
+        <h2> Modules</h2>
+        <ul id="modules">
+        </ul>
+        <div class="modal"></div>
+        <button id="logoutBtn" class="logout">Logout</button>
+        <script id="runningModulesTemplate" type="text/html">
+          <li>
+            <button id={{!port}} class="module" name={{!name}}>{{!name}}</button>
+          </li>
+        </script>
+        <script src="javascripts/user.js"></script>
+        <script src="javascripts/mustache.js"></script>
+    </body>
+</html>

@@ -77,13 +77,17 @@ class MainHandler(BaseHandler):
 
     """
 
-    def get(self):
+    async def get(self):
         """
         GET request for the index.html page
 
         """
         if self.current_user:
-            self.render("main.html")
+            result = await queryone("SELECT role FROM users WHERE id=%s", self.current_user)
+            if result["role"] == "admin":
+                self.render("admin.html")
+            else:
+                self.render("user.html")
         else:
             self.redirect("/login")
 
