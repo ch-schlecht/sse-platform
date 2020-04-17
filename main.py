@@ -508,14 +508,12 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
         if json_message['type'] == "get_user":
             username = json_message['username']
             user = await queryone("SELECT id, email, name AS username, role FROM users WHERE name = %s", username)
-            print(user)
             self.write_message({"type": "get_user_response",
                                 "user": user,
                                 "resolve_id": json_message['resolve_id']})
 
         elif json_message['type'] == "get_user_list":
             users = await query("SELECT id, email, name AS username, role FROM users")
-            print(users)
             ret_format = {}
             for user in users:
                 ret_format[user["username"]] = user
@@ -538,6 +536,13 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
                 self.write_message({"type": "token_validation_response",
                                     "success": False,
                                     "resolve_id": json_message["resolve_id"]})
+        elif json_message["type"] == "check_permission":
+            username = json_message["username"]
+            result = await queryone("SELECT role FROM users WHERE name = %s", username)
+            self.write_message({"type": "check_permission_response",
+                                "username": username,
+                                "role": result["role"],
+                                "resolve_id": json_message["resolve_id"]})
 
     def on_close(self):
         self.connections.remove(self)
