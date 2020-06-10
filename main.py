@@ -26,8 +26,6 @@ servers = {}
 server_services = {}
 dev_mode = False
 
-cookie_secret = b64encode(os.urandom(32)).decode("utf-8")  # 32 byte random string
-
 
 class BaseHandler(tornado.web.RequestHandler):
     """
@@ -505,7 +503,13 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
         print("got message:")
         print(json_message)
 
-        if json_message['type'] == "get_user":
+        if json_message["type"] == "module_start":
+            module_name = json_message["module_name"]
+            servers[module_name] = {"server": None, "port": json_message["port"]} # TODO dont need server anymore, clean up when microservices fully run
+            self.write_message({"type": "module_start_response",
+                                "status": "recognized",
+                                "resolve_id": json_message["resolve_id"]})
+        elif json_message['type'] == "get_user":
             username = json_message['username']
             user = await queryone("SELECT id, email, name AS username, role FROM users WHERE name = %s", username)
             self.write_message({"type": "get_user_response",
@@ -572,7 +576,7 @@ def shutdown_module(module_name):
         del server_services[module_name]
 
 
-def make_app(dev_mode_arg):
+def make_app(dev_mode_arg, cookie_secret):
     """
     Build the tornado Application
 
@@ -583,8 +587,6 @@ def make_app(dev_mode_arg):
     if dev_mode_arg:
         global dev_mode
         dev_mode = True
-
-    global cookie_secret
 
     return tornado.web.Application([
         (r"/", BaseHandler),
@@ -638,7 +640,7 @@ async def main():
     # init database
     await initialize_db(args.create_admin)
 
-    app = make_app(args.dev)
+    app = make_app(args.dev, config["cookie_secret"])
     server = tornado.httpserver.HTTPServer(app, ssl_options=ssl_ctx)
     servers['platform'] = {"server": server, "port": CONSTANTS.PORT}
     server_services['platform'] = {}
