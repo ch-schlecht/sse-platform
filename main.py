@@ -8,25 +8,19 @@ import tornado.web
 import tornado.websocket
 import tornado.locks
 import bcrypt
-import importlib
 import json
 import argparse
 import ssl
 import CONSTANTS
 import os
-from CONSTANTS import MODULE_PACKAGE
-from github_access import list_modules, clone
-from util import list_installed_modules, remove_module_files, get_config_path, load_config, write_config, \
-    determine_free_port
-from db_access import initialize_db, queryone, query, user_exists, NoResultError, is_admin
+from github_access import list_modules
+from db_access import initialize_db, queryone, query, user_exists, NoResultError
 from token_cache import token_cache
 from base64 import b64encode
 
 servers = {}
 server_services = {}
 dev_mode = False
-
-cookie_secret = b64encode(os.urandom(32)).decode("utf-8")  # 32 byte random string
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -123,105 +117,6 @@ class ModuleHandler(BaseHandler):
                             'success': False,
                             'reason': 'no_github_api_connection'})
 
-        elif slug == "list_installed":  # list istalled modules
-            if self.current_user:
-                modules = list_installed_modules()
-                self.write({'type': 'list_installed_modules',
-                            'installed_modules': modules})
-            else:
-                self.set_status(401)
-                self.write({"status": 401,
-                            "reason": "no_token",
-                            "redirect_suggestions": ["/login"]})
-
-        elif slug == "download":  # download module given by query param 'name'
-            if self.current_user and (await is_admin(self.current_user)):
-                module_to_download = self.get_argument('module_name',
-                                                       None)  # TODO handle input of wrong module name (BaseModule?)
-                print("Installing Module: " + module_to_download)
-                success = clone(module_to_download)  # download module
-                if success:
-                    self.write({'type': 'installation_response',
-                                'module': module_to_download,
-                                'success': success})
-                else:
-                    self.write({'type': 'installation_response',
-                                'module': module_to_download,
-                                'success': success,
-                                'reason': 'no_github_api_connection'})
-            else:
-                self.set_status(401)
-                self.write({"status": 401,
-                            "reason": "no_token",
-                            "redirect_suggestions": ["/login"]})
-
-        elif slug == "uninstall":  # uninstall module given by query param 'name'
-            if self.current_user and (await is_admin(self.current_user)):
-                module_to_uninstall = self.get_argument('module_name', None)
-
-                # check the module is not running, and if, stop it before uninstalling
-                if module_to_uninstall in servers:
-                    shutdown_module(module_to_uninstall)
-
-                print('Uninstalling Module: ' + module_to_uninstall)
-                success = remove_module_files(module_to_uninstall)
-                self.write({'type': 'uninstallation_response',
-                            'module': module_to_uninstall,
-                            'success': success})
-            else:
-                self.set_status(401)
-                self.write({"status": 401,
-                            "reason": "no_token",
-                            "redirect_suggestions": ["/login"]})
-
-
-class ConfigHandler(BaseHandler):
-    """
-    Handles configs of modules
-
-    """
-
-    async def get(self, slug):
-        """
-        GET request of /configs/view
-            query param: 'module_name'
-                get the config of the module given by module_name
-
-        """
-        if self.current_user and (await is_admin(self.current_user)):
-            if slug == "view":
-                module = self.get_argument("module_name", None)  # TODO handle input of wrong module name
-                config_path = get_config_path(module)
-                config = load_config(config_path)
-                self.write({'type': 'view_config',
-                            'module': module,
-                            'config': config})
-        else:
-            self.set_status(401)
-            self.write({"status": 401,
-                        "reason": "no_token",
-                        "redirect_suggestions": ["/login"]})
-
-    async def post(self, slug):
-        """
-        POST request of /configs/update
-            query param: 'module_name'
-            http body: json
-                changes the config of the module given by module_name to the json in the http body
-
-        """
-        if self.current_user and (await is_admin(self.current_user)):
-            if slug == "update":
-                module = self.get_argument("module_name", None)  # TODO handle input of wrong module name
-                config_path = get_config_path(module)
-                new_config = tornado.escape.json_decode(self.request.body)
-                write_config(config_path, new_config)
-        else:
-            self.set_status(401)
-            self.write({"status": 401,
-                        "reason": "no_token",
-                        "redirect_suggestions": ["/login"]})
-
 
 class ExecutionHandler(BaseHandler):
     """
@@ -241,60 +136,7 @@ class ExecutionHandler(BaseHandler):
 
         """
         if self.current_user:
-            data = {}
-            if slug == "start":
-                if (await is_admin(self.current_user)):
-                    module_to_start = self.get_argument("module_name", None)
-                    if module_to_start not in servers:
-                        spec = importlib.util.find_spec(".main", MODULE_PACKAGE + module_to_start)
-                        module = importlib.util.module_from_spec(spec)
-                        sys.modules[module_to_start] = module
-                        spec.loader.exec_module(module)
-
-                        # starting the module application
-                        # TODO consider ssl (or use global ssl certs from platform?)
-                        # TODO maybe wrap in try/except to suggest succes to user (for now just returns True)
-                        module_config_path = get_config_path(module_to_start)
-                        if module_config_path:
-                            with open(module_config_path) as json_file:
-                                module_config = json.load(json_file)
-                            module.apply_config(module_config)   # function implemented by module
-                        module.inherit_platform_port(CONSTANTS.PORT)  # function implemented by module
-                        module_app = module.make_app(True)  # function implemented by module
-                        global cookie_secret
-                        module_app.settings["cookie_secret"] = cookie_secret
-
-                        module_server = tornado.httpserver.HTTPServer(module_app,
-                                                                      no_keep_alive=False)  # need no-keep-alive to be able to stop server
-                        port = determine_free_port()
-
-                        servers[module_to_start] = {"server": module_server, "port": port}
-
-                        # set services
-                        if hasattr(module, 'get_services') and callable(getattr(module, 'get_services')):
-                            ii = module.get_services()
-                            server_services[module_to_start] = {"port": port, "service": ii}
-
-                        else:
-                            server_services[module_to_start] = {"port": port, "service": {}}
-
-                        module_server.listen(port)
-                        self.write({'type': 'starting_response',
-                                    'module': module_to_start,
-                                    'success': True,
-                                    'port': port})
-                    else:
-                        print("module already running, starting denied. stop module first")
-                        self.write({'type': 'starting_response',
-                                    'module': module_to_start,
-                                    'port': servers[module_to_start]['port'],
-                                    'success': False,
-                                    'reason': 'already_running'})
-            elif slug == "stop":
-                if (await is_admin(self.current_user)):
-                    module_to_stop = self.get_argument("module_name", None)
-                    shutdown_module(module_to_stop)
-            elif slug == "running":
+            if slug == "running":
                 data = {}
                 for module_name in servers.keys():
                     data[module_name] = {"port": servers[module_name]["port"]}
@@ -498,6 +340,8 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
 
     def open(self):
         print("client connected")
+        msg = tornado.escape.json_decode(self.request.body)
+        self.module_name = msg["module"]
         self.connections.add(self)
 
     async def on_message(self, message):
@@ -505,7 +349,13 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
         print("got message:")
         print(json_message)
 
-        if json_message['type'] == "get_user":
+        if json_message["type"] == "module_start":
+            module_name = json_message["module_name"]
+            servers[module_name] = {"server": None, "port": json_message["port"]} # TODO dont need server anymore, clean up when microservices fully run
+            self.write_message({"type": "module_start_response",
+                                "status": "recognized",
+                                "resolve_id": json_message["resolve_id"]})
+        elif json_message['type'] == "get_user":
             username = json_message['username']
             user = await queryone("SELECT id, email, name AS username, role FROM users WHERE name = %s", username)
             self.write_message({"type": "get_user_response",
@@ -545,6 +395,8 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
                                 "resolve_id": json_message["resolve_id"]})
 
     def on_close(self):
+        print("Client disconnected: " + self.module_name)
+        del servers[self.module_name]
         self.connections.remove(self)
 
     @classmethod
@@ -553,26 +405,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
             client.write_message(message)
 
 
-def shutdown_module(module_name):
-    """
-    Stop a module, i.e. call the stop_signal function of the module and stop the module's http server.
-    this function is not supposed to be called directly, it is called through the API
-
-    :param module_name: the module to stop
-
-    """
-
-    if module_name in servers:
-        if module_name in sys.modules:
-            # TODO check (maybe with hasattr) if the module has this function
-            sys.modules[module_name].stop_signal()  # call the stop function of the module to indicate stopping
-        server = servers[module_name]['server']
-        server.stop()  # stop the corresponding server, note: after calling stop, requests in progress will still continue
-        del servers[module_name]
-        del server_services[module_name]
-
-
-def make_app(dev_mode_arg):
+def make_app(dev_mode_arg, cookie_secret):
     """
     Build the tornado Application
 
@@ -584,13 +417,10 @@ def make_app(dev_mode_arg):
         global dev_mode
         dev_mode = True
 
-    global cookie_secret
-
     return tornado.web.Application([
         (r"/", BaseHandler),
         (r"/main", MainHandler),
         (r"/modules/([a-zA-Z\-0-9\.:,_]+)", ModuleHandler),
-        (r"/configs/([a-zA-Z\-0-9\.:,_]+)", ConfigHandler),
         (r"/execution/([a-zA-Z\-0-9\.:,_]+)", ExecutionHandler),
         (r"/register", RegisterHandler),
         (r"/login", LoginHandler),
@@ -613,10 +443,6 @@ async def main():
 
     ssl_ctx = None
 
-    # set up modules directory if not already present
-    if not os.path.isdir(CONSTANTS.MODULE_DIRECTORY):
-        os.mkdir(CONSTANTS.MODULE_DIRECTORY)
-
     # deal with config properties
     if args.config:
         with open(args.config) as json_file:
@@ -638,7 +464,7 @@ async def main():
     # init database
     await initialize_db(args.create_admin)
 
-    app = make_app(args.dev)
+    app = make_app(args.dev, config["cookie_secret"])
     server = tornado.httpserver.HTTPServer(app, ssl_options=ssl_ctx)
     servers['platform'] = {"server": server, "port": CONSTANTS.PORT}
     server_services['platform'] = {}

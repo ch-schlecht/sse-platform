@@ -20,7 +20,6 @@ var $body = $('body');
  * add installed modules to list
  */
 $(document).ready(function() {
-    getInstalledModules();
     getAvailableModules();
     getRunningModules();
 });
@@ -85,32 +84,6 @@ function addModuleAvailable(module) {
     $('[data-id=' + module + ']').addClass('noedit');
     $('[id=' + module + ']').addClass('edit');
   }
-}
-
-/**
- * getInstalledModules - on success add modules to List and display HTML
- * calls addModuleInstalled
- */
-function getInstalledModules(){
-  return $.ajax({
-    type: 'GET',
-    url: '/modules/list_installed',
-    dataType: 'json',
-    async: false,
-    success: function (modules) {
-      $.each(modules.installed_modules, function (i, module) {
-        modulesInstalledList.push(module);
-        addModuleInstalled(module);
-      });
-    },
-
-    error: function (xhr, status, error) {
-      alert('error loading installed modules');
-      console.log(error);
-      console.log(status);
-      console.log(xhr);
-    },
-  });
 }
 
 /**
