@@ -188,12 +188,19 @@ async def user_exists(username):
 
 async def is_admin(user_id):
     try:
-        result = await queryone("SELECT role FROM users where id=%s", user_id)
-        print(result)
-        if result["role"] == "admin":
+        result = await get_role(user_id)
+        if result == "admin":
             return True
         else:
             return False
     except Exception as e:
         print(e)
         return False
+
+async def get_role(user_id):
+    try:
+        result = await queryone("SELECT role FROM users WHERE id = %s", user_id)
+        return result["role"]
+    except Exception as e:
+        print(e)
+        return None

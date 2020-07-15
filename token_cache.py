@@ -111,8 +111,8 @@ class Token_Cache:
         """
         if token in self._data:
             self._data[token]["expires"] = datetime.now() + timedelta(seconds=TOKEN_TTL)
-            print("updated token ttl to: ")
-            print(self._data[token])
+            #print("updated token ttl to: ")
+            #print(self._data[token])
 
     def _remove_expired(self):
         """

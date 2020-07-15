@@ -14,7 +14,7 @@ import ssl
 import CONSTANTS
 import os
 from github_access import list_modules
-from db_access import initialize_db, queryone, query, user_exists, NoResultError
+from db_access import initialize_db, queryone, query, user_exists, NoResultError, is_admin, execute
 from token_cache import token_cache
 from base64 import b64encode
 
@@ -77,8 +77,7 @@ class MainHandler(BaseHandler):
 
         """
         if self.current_user:
-            result = await queryone("SELECT role FROM users WHERE id=%s", self.current_user)
-            if result["role"] == "admin":
+            if await is_admin(self.current_user):
                 self.render("admin.html")
             else:
                 self.render("user.html")
@@ -333,6 +332,49 @@ class RoleHandler(BaseHandler):
                         "reason": "no_token",
                         "redirect_suggestions": ["/login"]})
 
+    async def post(self):
+        if self.current_user:
+            if await is_admin(self.current_user):
+                user_id = self.get_argument("user_id")
+                role = self.get_argument("role")
+                await execute("UPDATE users SET role = %s WHERE id = %s", role, user_id)
+
+                self.set_status(200)
+                self.write({"status": 200,
+                            "success": True})
+            else:
+                self.set_status(401)
+                self.write({"status": 401,
+                            "reason": "user_not_admin",
+                            "redirect_suggestions": ["/login"]})
+        else:
+            self.set_status(401)
+            self.write({"status": 401,
+                        "reason": "no_token",
+                        "redirect_suggestions": ["/login"]})
+
+
+class UserHandler(BaseHandler):
+
+    async def get(self):
+        if self.current_user:
+            if await is_admin(self.current_user):
+                user_list = [user for user in await query("SELECT id, name, email, role FROM users")]
+                self.set_status(200)
+                self.write({"status": 200,
+                            "success": True,
+                            "user_list": user_list})
+            else:
+                self.set_status(401)
+                self.write({"status": 401,
+                            "reason": "user_not_admin",
+                            "redirect_suggestions": ["/login"]})
+        else:
+            self.set_status(401)
+            self.write({"status": 401,
+                        "reason": "no_token",
+                        "redirect_suggestions": ["/login"]})
+
 
 class WebsocketHandler(tornado.websocket.WebSocketHandler):
 
@@ -426,6 +468,7 @@ def make_app(dev_mode_arg, cookie_secret):
         (r"/login", LoginHandler),
         (r"/logout", LogoutHandler),
         (r"/roles", RoleHandler),
+        (r"/users", UserHandler),
         (r"/websocket", WebsocketHandler),
         (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"}),
         (r"/img/(.*)", tornado.web.StaticFileHandler, {"path": "./img/"}),
