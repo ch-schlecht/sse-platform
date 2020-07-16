@@ -14,7 +14,7 @@ import ssl
 import CONSTANTS
 import os
 from github_access import list_modules
-from db_access import initialize_db, queryone, query, user_exists, NoResultError, is_admin, execute
+from db_access import initialize_db, queryone, query, user_exists, NoResultError, is_admin, execute, get_role
 from token_cache import token_cache
 from base64 import b64encode
 
@@ -209,7 +209,8 @@ class LoginHandler(BaseHandler):
             # generate token, store and return it
             access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
 
-            token_cache().insert(access_token, user['id'], user["name"], user["email"])
+            role = await get_role(user["id"])
+            token_cache().insert(access_token, user['id'], user["name"], user["email"], role)
 
             self.set_secure_cookie("access_token", access_token)
 
@@ -218,6 +219,7 @@ class LoginHandler(BaseHandler):
                     "username": user["name"],
                     "email": user["email"],
                     "id": user["id"],
+                    "role": role,
                     "access_token": access_token}
             tornado.ioloop.IOLoop.current().add_callback(WebsocketHandler.broadcast_message, data)
 
@@ -295,12 +297,13 @@ class RegisterHandler(BaseHandler):
             # save user, generate token, store and return it
             result = await queryone("INSERT INTO users (email, name, hashed_password, role) \
                             VALUES (%s, %s, %s, %s) RETURNING id",
-                            email, nickname, tornado.escape.to_unicode(hashed_password), "user")
+                            email, nickname, tornado.escape.to_unicode(hashed_password), "guest")
             user_id = result['id']
 
             access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
 
-            token_cache().insert(access_token, user_id, nickname, email)
+            role = await get_role(user_id)
+            token_cache().insert(access_token, user_id, nickname, email, role)
 
             self.set_secure_cookie("access_token", access_token)
 
@@ -309,6 +312,7 @@ class RegisterHandler(BaseHandler):
                     "username": nickname,
                     "email": email,
                     "id": user_id,
+                    "role": role,
                     "access_token": access_token}
             tornado.ioloop.IOLoop.current().add_callback(WebsocketHandler.broadcast_message, data)
 
@@ -421,6 +425,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
                                         "username": validated_user["username"],
                                         "email": validated_user["email"],
                                         "user_id": validated_user["user_id"],
+                                        "role": validated_user["role"],
                                         "expires": str(validated_user["expires"])
                                     },
                                     "resolve_id": json_message["resolve_id"]})
