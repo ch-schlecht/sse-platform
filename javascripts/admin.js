@@ -97,9 +97,13 @@ function getRunningModules(){
     dataType: 'json',
     async: false,
     success: function (data) {
-
+      console.log(data);
       $.each(data.running_modules, function (i, module) {
         var $li = $body.find('li[name=' + i + ']');
+        if(!$li.length && i!="platform"){
+          $modules.append(Mustache.render(document.getElementById('runningModulesTemplate').innerHTML, {"port":module.port, "name":i}));
+          return;
+        }
         var $start = $body.find('button#' + i + '.start');
         var $stop = $body.find('button#' + i + '.stop');
         try {
@@ -124,6 +128,21 @@ function getRunningModules(){
     },
   });
 }
+
+$body.delegate('.module', 'click', function () {
+    var $port = $(this).attr('id');
+    var $name = $(this).attr('name');
+    var tailUrl = '';
+    //modify URL if its SocialServ or chatsystem
+    if($name == 'SocialServ' || $name == 'chatsystem') tailUrl = '/main';
+    var win = window.open('' + newTabUrl + ':' + $port + '' + tailUrl, '_blank');
+    if (win) {
+      win.focus();
+    } else {
+      alert('Please allow popups for this page.');
+    }
+  });
+
 /**
  * getAvailableModules - on success displays html
  * calls addModuleAvailable
@@ -135,6 +154,7 @@ function getAvailableModules(){
     dataType: 'json',
     async: false,
     success: function (modules) {
+      console.log(modules);
       if(modules.success == true){
         $.each(modules.modules, function (i, module) {
           addModuleAvailable(module);

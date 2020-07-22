@@ -64,7 +64,9 @@ function getRunningModules(){
     async: false,
     success: function (data) {
       $.each(data.running_modules, function (i, module) {
-        $modules.append(Mustache.render(document.getElementById('runningModulesTemplate').innerHTML, {"port":module.port, "name":i}));
+        if(i!="platform"){
+          $modules.append(Mustache.render(document.getElementById('runningModulesTemplate').innerHTML, {"port":module.port, "name":i}));
+        }
       });
     },
 

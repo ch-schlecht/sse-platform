@@ -27,6 +27,11 @@
             <button id="save">Save</button>
           </div>
         </div>
+        <script id="runningModulesTemplate" type="text/html">
+          <li>
+            <button id={{!port}} class="module" name={{!name}}>{{!name}}</button>
+          </li>
+        </script>
         <div class="modal"></div>
         <button id="logoutBtn" class="logout">Logout</button>
         <script src="javascripts/admin.js"></script>

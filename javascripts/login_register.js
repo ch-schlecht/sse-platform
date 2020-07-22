@@ -36,8 +36,10 @@ $(document).ready(function () {
 		var pathname = window.location.pathname; // Returns path only (/path/example.html)
 		var url      = window.location.href;     // Returns full URL (https://example.com/path/example.html)
 		var origin   = window.location.origin;   // Returns base URL (https://example.com)
+		window.history.pushState("login", "SSE Platform Login", origin + '/login?'); //needs firefox 4+, works in chrome
 		window.location.hash = 'login';
-		//window.history.pushState("login", "SSE Platform Login", origin + '/login?'); //needs firefox 4+, works in chrome
+		//$('#login').addClass('selected');
+
 
 });
 
@@ -64,7 +66,6 @@ $(document).ready(function () {
  * save username and password
  */
 function login() {
-
   var username = $('input#username').val();
   var password = $('input#password').val();
 
