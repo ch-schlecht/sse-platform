@@ -1,3 +1,6 @@
+signing_key.key
+verify_key.key
+
 /modules
 /modules/*
 config.json
