@@ -129,15 +129,9 @@ class ExecutionHandler(BaseHandler):
 
     async def get(self, slug):
         """
-        GET request of /execution/[slug]
-
-        slug can eiter be: start, stop
-            start: query param: 'module_name'
-                start a module
-            stop: query param: 'module_name'
-                stop a module
-
+        GET request of /execution/running
         """
+
         if self.current_user:
             if slug == "running":
                 data = {}
@@ -183,15 +177,19 @@ class LoginHandler(BaseHandler):
         query param: `password`
 
         """
-        # TODO check for self.current_user, if already set, user is authenticated and can be redirected to MainHandler
-
-        # TODO check if those arguments were set, if not, return 400 bad request
-        email = self.get_argument("email", "")
-        nickname = self.get_argument("nickname", "")
-        password = self.get_argument("password")
-
         try:
+            email = self.get_argument("email", "")
+            nickname = self.get_argument("nickname", "")
+            password = self.get_argument("password")
             user = await queryone("SELECT * FROM users WHERE email = %s OR name = %s", email, nickname)
+        except tornado.web.MissingArgumentError: # either email/nickname or password have not been sent in the request
+            self.set_status(400)
+            self.write({"status": 400,
+                        "reason": "missing_query_parameter",
+                        "redirect_suggestions": ["/login", "/register"]})
+            self.flush()
+            self.finish()
+            return
         except NoResultError:  # user does not exist
             self.set_status(409)
             self.write({"status": 409,
@@ -277,10 +275,17 @@ class RegisterHandler(BaseHandler):
         query param: `password`
 
         """
-        # TODO check if those arguments were set, if not, return 400 bad request
-        email = self.get_argument("email")
-        nickname = self.get_argument("nickname")
-        unhashed_password = self.get_argument("password")
+
+        try:
+            email = self.get_argument("email")
+            nickname = self.get_argument("nickname")
+            unhashed_password = self.get_argument("password")
+        except tornado.web.MissingArgumentError:
+            self.set_status(400)
+            self.write({"status": 400,
+                        "reason": "missing_query_parameter",
+                        "redirect_suggestions": ["/login", "/register"]})
+            return
 
         hashed_password = await tornado.ioloop.IOLoop.current().run_in_executor(
             None,
@@ -425,7 +430,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
 
         if json_message["type"] == "module_start":
             module_name = json_message["module_name"]
-            servers[module_name] = {"server": None, "port": json_message["port"]} # TODO dont need server anymore, clean up when microservices fully run
+            servers[module_name] = {"port": json_message["port"]}
             self.write_message({"type": "module_start_response",
                                 "status": "recognized",
                                 "resolve_id": json_message["resolve_id"]})
@@ -542,7 +547,7 @@ async def main():
 
     app = make_app(args.dev, config["cookie_secret"])
     server = tornado.httpserver.HTTPServer(app, ssl_options=ssl_ctx)
-    servers['platform'] = {"server": server, "port": CONSTANTS.PORT}
+    servers['platform'] = {"port": CONSTANTS.PORT}
     server_services['platform'] = {}
     server.listen(CONSTANTS.PORT)
 
