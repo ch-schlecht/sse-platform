@@ -13,6 +13,10 @@ import argparse
 import ssl
 import CONSTANTS
 import os
+import signing
+import nacl.signing
+import nacl.encoding
+import nacl.exceptions
 from github_access import list_modules
 from db_access import initialize_db, queryone, query, user_exists, NoResultError, is_admin, execute, get_role
 from token_cache import token_cache
@@ -384,6 +388,27 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
 
     connections = set()
 
+    def verify_msg(self, message):
+        message = tornado.escape.json_decode(message)
+        with open("verify_keys.json", "r") as fp:
+            verify_keys = json.load(fp)
+
+        origin = message["origin"]
+        if origin in verify_keys:
+            verify_key_b64 = verify_keys[origin].encode("utf8")
+            verify_key = nacl.signing.VerifyKey(verify_key_b64, encoder=nacl.encoding.Base64Encoder)
+            try:
+                verified = verify_key.verify(message["signed_msg"], encoder=nacl.encoding.Base64Encoder)
+                original_message = tornado.escape.json_decode(verified.decode("utf8"))
+                if original_message["origin"] == message["origin"]:
+                    return original_message
+            except nacl.exceptions.BadSignatureError:
+                print("Signature validation failed")
+                return None
+
+    def sign(self, message):
+        pass
+
     def open(self):
         print("client connected")
         msg = tornado.escape.json_decode(self.request.body)
@@ -391,9 +416,12 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
         self.connections.add(self)
 
     async def on_message(self, message):
-        json_message = tornado.escape.json_decode(message)
+        json_message = self.verify_msg(message)
         print("got message:")
         print(json_message)
+        if json_message is None:
+            self.write_message({"type": "signature_verification_error"})
+            return
 
         if json_message["type"] == "module_start":
             module_name = json_message["module_name"]
