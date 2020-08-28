@@ -434,6 +434,14 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
             self.write_message({"type": "module_start_response",
                                 "status": "recognized",
                                 "resolve_id": json_message["resolve_id"]})
+
+        elif json_message["type"] == "user_logout":
+            token = json_message["access_token"]
+            token_cache().remove(token)
+            self.write_message({"type":"user_logout_response",
+                                "success": True,
+                                "resolve_id": json_message["resolve_id"]})
+
         elif json_message['type'] == "get_user":
             username = json_message['username']
             user = await queryone("SELECT id, email, name AS username, role FROM users WHERE name = %s", username)
@@ -449,6 +457,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
             self.write_message({"type": "get_user_list_response",
                                 "users": ret_format,
                                 "resolve_id": json_message['resolve_id']})
+
         elif json_message["type"] == "token_validation":
             validated_user = token_cache().get(json_message["access_token"])
             if validated_user is not None:
@@ -466,6 +475,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler):
                 self.write_message({"type": "token_validation_response",
                                     "success": False,
                                     "resolve_id": json_message["resolve_id"]})
+
         elif json_message["type"] == "check_permission":
             username = json_message["username"]
             result = await queryone("SELECT role FROM users WHERE name = %s", username)
