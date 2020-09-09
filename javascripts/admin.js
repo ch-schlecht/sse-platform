@@ -20,8 +20,8 @@ var $body = $('body');
  * add installed modules to list
  */
 $(document).ready(function() {
-    getAvailableModules();
     getRunningModules();
+    getUsersWithRoles();
 });
 
 /**
@@ -127,6 +127,34 @@ function getRunningModules(){
       console.log(xhr);
     },
   });
+}
+
+function getUsersWithRoles(){
+  $.ajax({
+    type: "GET",
+    url:"/users",
+    success: function(response){
+      $.each(response.user_list, function(index, user){
+        $("#users").append(Mustache.render(document.getElementById("userRoleTemplate").innerHTML, {"name": user.name}));
+        $("#roleSelect_" + user.name).val(user.role);
+      });
+      console.log(response.user_list);
+    }
+  })
+}
+
+function updateUserRole(formElement){
+  var userName = formElement.id;
+  var assignedRole = $("#roleSelect_" + userName).val();
+  $.ajax({
+    type: "POST",
+    url: "/roles?user_name=" + userName + "&role=" + assignedRole,
+    success: function(response){
+      console.log("successful") // TODO make little green alert or so
+    }
+  });
+
+  return false; //needed to prevent default behaviour of a form
 }
 
 $body.delegate('.module', 'click', function () {

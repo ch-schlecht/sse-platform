@@ -348,9 +348,9 @@ class RoleHandler(BaseHandler):
     async def post(self):
         if self.current_user:
             if await is_admin(self.current_user):
-                user_id = self.get_argument("user_id")
+                user_name = self.get_argument("user_name")
                 role = self.get_argument("role")
-                await execute("UPDATE users SET role = %s WHERE id = %s", role, user_id)
+                await execute("UPDATE users SET role = %s WHERE name = %s", role, user_name)
 
                 self.set_status(200)
                 self.write({"status": 200,

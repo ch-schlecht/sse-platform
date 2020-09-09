@@ -18,21 +18,41 @@
         <h2> Modules</h2>
         <ul id="modules">
         </ul>
-        <div class="bg-modal">
-          <div class="modal-content">
-            <div class="close">+</div>
-            <form action="">
-              <textarea id="config-area" wrap="off" rows="8" cols="80"></textarea>
-            </form>
-            <button id="save">Save</button>
-          </div>
+
+        <h2> Users </h2>
+        <div class="container" id="users">
         </div>
+
+
+
+
         <script id="runningModulesTemplate" type="text/html">
           <li>
             <button id={{!port}} class="module" name={{!name}}>{{!name}}</button>
           </li>
         </script>
-        <div class="modal"></div>
+
+        <script id="userRoleTemplate" type="text/html">
+          <div class="card" style="width: 20rem;">
+            <div class="card-body">
+              <form id="{{!name}}" onsubmit="return updateUserRole(this)">
+                <div class="form-group">
+                  <label for="roleSelect">{{!name}}</label>
+                  <select class="form-control" id="roleSelect_{{!name}}">
+                    <option value="guest">Guest</option>
+                    <option value="parent">Parent</option>
+                    <option value="teacher">Teacher</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <input type="submit" value="Save"></input>
+                </div>
+              </form>
+            </div>
+
+        </script>
+
         <button id="logoutBtn" class="logout">Logout</button>
         <script src="javascripts/admin.js"></script>
         <script src="javascripts/mustache.js"></script>
