@@ -102,6 +102,20 @@ $ pytest
 In order to build a module there are certain rules and steps to do to ensure your module is working properly. (As this platform is in alpha state, please not that this information is subject to change):
 
 1. Your only way of communication with the platform is via a websocket connection.
-  Our modules all use the same client class. Feel free to also use this websocket client in your module. you can find it in socket_client.py
+  Our modules all use the same client class. Feel free to also use this websocket client in your module. you can find it in socket_client.py. Please note: You have to change the names of your module in the placeholders (lines 23, 60, 78, 87). Keep in mind to use the exact same name everywhere (also when communicating with the platform (later steps)).
+    If you aim to use this socket client class without modification, you also need to use the token_cache_client.py to store the information about the currently active users. Copy it into your module, it should work out of the box with the socket client.
+
+2. To establish a connection and to communicate with the platform your messages have to be digitally signed. There is a script (signing.py) that provides the generation of a sign and verify key. Execute this script, and you will receive two files: signing_key.key and verify_key.key . Keep those in your modules directory. Keep the signing key secret at all cost. Copy the verify key from the file into the verify_keys.json at the platform. Remember to use the same name as in step 1.
+
+3. You should be good to go. To initiate a WebSocket connection with the platform and make the platform recognize your module, use the following code snippet:
+```python3
+client = await get_socket_instance()
+response = await client.write({"type": "module_start",
+                               "module_name": "<your_module_name_here>",
+                               "port": <free_port_here>})
+# if response["status"] == "recognized":
+      # you now have an established connection with the platform
+```
+Again, use the same name as in steps 1 and 2.
 
 Once your module is ready for use, commit and create a pull request to [this](https://github.com/Smunfr/sse-platform-modules) repository. Please consider only pushing production-ready code to this repository, do not use it for development.

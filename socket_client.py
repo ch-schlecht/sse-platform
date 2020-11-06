@@ -1,12 +1,14 @@
 import tornado
 import uuid
 import json
-import SOCIALSERV_CONSTANTS
+import CONSTANTS
+import signing
+import nacl.encoding
 from tornado.ioloop import PeriodicCallback
 from tornado import gen
 from tornado.websocket import websocket_connect
 from asyncio import get_event_loop
-from socialserv_token_cache import get_token_cache
+from token_cache_client import get_token_cache
 from tornado.options import options
 
 
@@ -17,8 +19,8 @@ async def get_socket_instance():
         if options.dev:
             the_websocket_client = Client("ws://localhost:88810/websocket")
         else:
-            the_websocket_client = Client(tornado.httpclient.HTTPRequest("wss://localhost:" + str(SOCIALSERV_CONSTANTS.PLATFORM_PORT) + "/websocket", validate_cert=False,
-                                          body=json.dumps({"type": "module_socket_connect", "module": "SocialServ"}), allow_nonstandard_methods=True))
+            the_websocket_client = Client(tornado.httpclient.HTTPRequest("wss://localhost:" + str(CONSTANTS.PLATFORM_PORT) + "/websocket", validate_cert=False,
+                                          body=json.dumps({"type": "module_socket_connect", "module": "<your_module_name_here>"}), allow_nonstandard_methods=True))
         await the_websocket_client._await_init()
     return the_websocket_client
 
@@ -55,12 +57,14 @@ class Client(object):
 
     def on_message(self, msg):
         json_message = tornado.escape.json_decode(msg)
-        print("SocialServ received message: ")
+        print("<your_module_name_here> received message: ")
         print(json_message)
 
         if "type" in json_message:
-            if json_message["type"] == "user_login":
-                get_token_cache().insert(json_message["access_token"], json_message["username"], json_message["email"], json_message["id"])
+            if json_message["type"] == "signature_verification_error":
+                raise RuntimeError("Platform could not validate signature")
+            elif json_message["type"] == "user_login":
+                get_token_cache().insert(json_message["access_token"], json_message["username"], json_message["email"], json_message["id"], json_message["role"])
 
             elif json_message["type"] == "user_logout":
                 get_token_cache().remove(json_message["access_token"])
@@ -71,12 +75,19 @@ class Client(object):
                     self.futures[resolve_id].set_result(json_message)
 
     def write(self, message):
-        message['origin'] = "SocialServ"
-
+        message["origin"] = "<your_module_name_here>"
         resolve_id = str(uuid.uuid4())
-        message['resolve_id'] = resolve_id
+        message["resolve_id"] = resolve_id
+        sign_key = signing.get_signing_key()
+        msg_str = tornado.escape.json_encode(message)
+        signed = sign_key.sign(msg_str.encode("utf8"), encoder=nacl.encoding.Base64Encoder)
+        signed_str = signed.decode("utf8")
 
-        self.ws.write_message(tornado.escape.json_encode(message))
+        wrapped_message = {"signed_msg": signed_str,
+                           "origin": "<your_module_name_here>",
+                           "resolve_id": resolve_id}
+
+        self.ws.write_message(tornado.escape.json_encode(wrapped_message))
 
         loop = get_event_loop()
         fut = loop.create_future()
