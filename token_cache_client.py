@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta
-from CONSTANTS import TOKEN_TTL
 
 the_token_cache = None
 
 
-def token_cache():
+def get_token_cache():
     """
     Constructing function for the Token_Cache class. Since it is a singleton, only use
     this function to access the class. Never create an instance yourself
@@ -37,22 +36,22 @@ class Token_Cache:
     def __init__(self):
         self._data = {}
 
-    def insert(self, token, user_id, username, email, role):
+    def insert(self, token, username, email, id, role):
         """
-        Inserts a new token into the cache, which is associated with the user behind the `user_id`.
-        The global time to live is one hour, which can be adjusted to your needs in the CONSTANTS file.
+        Inserts a new token into the cache, which is associated with the user behind the 'username'.
+        The global time to live is one hour
 
         :param token: the access token
         :type token: string
 
-        :param user_id: the id of the user this token should be associated to
-        :type user_id: int
+        :param username: the username of the user this token should be associated to
+        :type username: string
 
         """
         self._remove_expired()
-        cache_obj = {"user_id": user_id, "username": username, "email": email, "role": role, "expires": datetime.now() + timedelta(seconds=TOKEN_TTL)}
+        cache_obj = {"username": username, "email": email, "id": id, "role": role, "expires": datetime.now() + timedelta(seconds=3600)} # TODO inherit ttl value from platform
         self._data[token] = cache_obj
-        print("inserted into cache: ")
+        print("inserted into ListServ cache: ")
         print(cache_obj)
 
     def get(self, token):
@@ -65,7 +64,7 @@ class Token_Cache:
         .. code-block:: JSON
 
            {
-            "user_id": 1,
+            "username": 1,
             "expires": "datetime.datetime object"
            }
 
@@ -95,7 +94,7 @@ class Token_Cache:
         """
         self._remove_expired()
         if token in self._data:
-            print("removed from cache:")
+            print("removed from ListServ cache:")
             print(self._data[token])
             del self._data[token]
 
@@ -110,9 +109,9 @@ class Token_Cache:
 
         """
         if token in self._data:
-            self._data[token]["expires"] = datetime.now() + timedelta(seconds=TOKEN_TTL)
-            #print("updated token ttl to: ")
-            #print(self._data[token])
+            self._data[token]["expires"] = datetime.now() + timedelta(seconds=3600)
+            print("updated ListServ token ttl to: ")
+            print(self._data[token])
 
     def _remove_expired(self):
         """

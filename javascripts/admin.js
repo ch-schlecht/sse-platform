@@ -1,7 +1,6 @@
-
-var baseUrl = 'https://localhost:8888';
-var newTabUrl = 'http://localhost';
-var loginURL = 'https://localhost:8888/login';
+var baseUrl = window.location.origin;
+var newTabUrl= baseUrl.replace('s','').substr(0, baseUrl.lastIndexOf(':')-1);
+var loginURL = baseUrl + '/login';
 var $modules = $('#modules');
 var modulesInstalledList = [];
 var modulesTemplate =    '' +
@@ -14,6 +13,16 @@ var modulesTemplate =    '' +
             '<button id={{name}} class=stop>Stop</button>' +
           '</li>';
 var $body = $('body');
+
+
+/**
+ * on page load - get all available and installed modules
+ * add installed modules to list
+ */
+$(document).ready(function() {
+    getRunningModules();
+    getUsersWithRoles();
+});
 
 /**
  * add or removes class 'loading' on ajax request
@@ -29,10 +38,9 @@ $(document).on({
  *
  */
 $('.logout').click(function () {
-  console.log('clicked');
   $.ajax({
-    type: 'GET',
-    url: baseUrl + '/logout',
+    type: 'POST',
+    url: '/logout',
     success: function (data) {
       window.location.href = loginURL;
     },
@@ -75,58 +83,129 @@ function addModuleAvailable(module) {
     $modules.append(Mustache.render(modulesTemplate, { name: '' + module + '' }));
     $('[data-id=' + module + ']').addClass('noedit');
     $('[id=' + module + ']').addClass('edit');
-
-    //get element with module id and start class
-    //$('#' + module + '.start').addClass('running');
   }
 }
 
 /**
- * on page load - get all available and installed modules
- * add installed modules to list
+ * getRunningModules - display if a module already runs on a port
+ * on success display HTML and add running class to elements
  */
-$(function () {
-      $.ajax({
-        type: 'GET',
-        url: baseUrl + '/modules/list_installed',
-        dataType: 'json',
-        success: function (modules) {
-          $.each(modules.installed_modules, function (i, module) {
-            modulesInstalledList.push(module);
-            addModuleInstalled(module);
-          });
-        },
+function getRunningModules(){
+  return $.ajax({
+    type: 'GET',
+    url: '/execution/running',
+    dataType: 'json',
+    async: false,
+    success: function (data) {
+      console.log(data);
+      $.each(data.running_modules, function (i, module) {
+        var $li = $body.find('li[name=' + i + ']');
+        if(!$li.length && i!="platform"){
+          $modules.append(Mustache.render(document.getElementById('runningModulesTemplate').innerHTML, {"port":module.port, "name":i}));
+          return;
+        }
+        var $start = $body.find('button#' + i + '.start');
+        var $stop = $body.find('button#' + i + '.stop');
+        try {
+          tailUrl = '';
+          //modify URL if its SocialServ
+          if(i == 'SocialServ' || i == 'chatsystem') tailUrl = '/main';
+          $li.children('p').append('<span id="port"> running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + tailUrl + '>' + module.port + '</a></span>');
+        } catch (e) {
+          $li.children('p').append('<span id="port"> running on a port </span>');
+        }
 
-        error: function (xhr, status, error) {
-          alert('error loading installed modules');
-          console.log(error);
-          console.log(status);
-          console.log(xhr);
-        },
+        $start.addClass('running');
+        $stop.addClass('running');
       });
+    },
 
-      $.ajax({
-        type: 'GET',
-        url: baseUrl + '/modules/list_available',
-        dataType: 'json',
-        success: function (modules) {
-          $.each(modules.modules, function (i, module) {
-            addModuleAvailable(module);
-          });
-        },
+    error: function (xhr, status, error) {
+      alert('error loading running modules');
+      console.log(error);
+      console.log(status);
+      console.log(xhr);
+    },
+  });
+}
 
-        error: function (xhr, status, error) {
-          if (xhr.status == 401) {
-            window.location.href = loginURL;
-          } else {
-            alert('error loading available modules');
-            console.log(error);
-            console.log(status);
-            console.log(xhr);
-          }
-        },
+function getUsersWithRoles(){
+  $.ajax({
+    type: "GET",
+    url:"/users",
+    success: function(response){
+      $.each(response.user_list, function(index, user){
+        $("#users").append(Mustache.render(document.getElementById("userRoleTemplate").innerHTML, {"name": user.name}));
+        $("#roleSelect_" + user.name).val(user.role);
       });
-    });
+      console.log(response.user_list);
+    }
+  })
+}
+
+function updateUserRole(formElement){
+  var userName = formElement.id;
+  var assignedRole = $("#roleSelect_" + userName).val();
+  $.ajax({
+    type: "POST",
+    url: "/roles?user_name=" + userName + "&role=" + assignedRole,
+    success: function(response){
+      console.log("successful") // TODO make little green alert or so
+    }
+  });
+
+  return false; //needed to prevent default behaviour of a form
+}
+
+$body.delegate('.module', 'click', function () {
+    var $port = $(this).attr('id');
+    var $name = $(this).attr('name');
+    var tailUrl = '';
+    //modify URL if its SocialServ or chatsystem
+    if($name == 'SocialServ' || $name == 'chatsystem') tailUrl = '/main';
+    var win = window.open('' + newTabUrl + ':' + $port + '' + tailUrl, '_blank');
+    if (win) {
+      win.focus();
+    } else {
+      alert('Please allow popups for this page.');
+    }
+  });
+
+/**
+ * getAvailableModules - on success displays html
+ * calls addModuleAvailable
+ */
+function getAvailableModules(){
+   return $.ajax({
+    type: 'GET',
+    url: '/modules/list_available',
+    dataType: 'json',
+    async: false,
+    success: function (modules) {
+      console.log(modules);
+      if(modules.success == true){
+        $.each(modules.modules, function (i, module) {
+          addModuleAvailable(module);
+        });
+      }
+      else{
+        console.log("error: " + modules.reason);
+        alert("Could not connect to Github API");
+      }
+    },
+
+    error: function (xhr, status, error) {
+      if (xhr.status == 401) {
+        window.location.href = loginURL;
+      } else {
+        alert('error loading available modules');
+        console.log(error);
+        console.log(status);
+        console.log(xhr);
+      }
+    },
+  });
+}
 
 /**
  * on download click - download module and add it to installed-list
@@ -136,11 +215,17 @@ $modules.delegate('.download', 'click', function () {
     var $li = $(this).closest('li');
     $.ajax({
       type: 'GET',
-      url: baseUrl + '/modules/download?module_name=' + $(this).attr('data-id'),
+      url: '/modules/download?module_name=' + $(this).attr('data-id'),
       dataType: 'json',
       success: function (module) {
-        modulesInstalledList.push(module.module);
-        $li.addClass('edit');
+        if(module.success == true){
+          modulesInstalledList.push(module.module);
+          $li.addClass('edit');
+        }
+        else{
+          console.log("error: " + module.reason);
+          alert("installation failure");
+        }
       },
 
       error: function (xhr, status, error) {
@@ -164,7 +249,7 @@ $modules.delegate('.uninstall', 'click', function () {
     var $li = $(this).closest('li');
     $.ajax({
       type: 'GET',
-      url: baseUrl + '/modules/uninstall?module_name=' + $(this).attr('id'),
+      url: '/modules/uninstall?module_name=' + $(this).attr('id'),
       dataType: 'json',
       success: function (module) {
         var index = modulesInstalledList.indexOf(module.module);
@@ -198,30 +283,30 @@ $modules.delegate('.start', 'click', function () {
       var $stop = $('#' + $(this).attr('id') + '.stop');
       $.ajax({
         type: 'GET',
-        url: baseUrl + '/execution/start?module_name=' + $(this).attr('id'),
+        url: '/execution/start?module_name=' + $(this).attr('id'),
         dataType: 'json',
         success: function (module) {
-          console.log('started');
-          console.log(module.reason);
-          console.log(module.port);
-
+          //console.log(module);
           if (module.reason !== 'already_running') {
-            $li.children('p').append('<span id="port"> running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + '>' + module.port + '</a></span>');
+            tailUrl = '';
+            //modify URL if its SocialServ or chatsystem
+            if(module.module == 'SocialServ' || module.module == 'chatsystem') tailUrl = '/main';
+            $li.children('p').append('<span id="port"> running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + tailUrl + '>' + module.port + '</a></span>');
 
-            var win = window.open('' + newTabUrl + ':' + module.port, '_blank');
+            var win = window.open('' + newTabUrl + ':' + module.port + "/main", '_blank');
             if (win) {
               win.focus();
             } else {
               alert('Please allow popups for this page.');
             }
 
-          } else {
+          } /*else {
             try {
               $li.children('p').append('<span id="port"> already running on port <a target="_blank" rel="noopener noreferrer" href=' + newTabUrl + '' + ':' + module.port + '>' + module.port + '</a></span>');
             } catch (e) {
               $li.children('p').append('<span id="port"> already running on a port </span>');
             }
-          }
+          }*/
 
           $start.addClass('running');
           $stop.addClass('running');
@@ -250,14 +335,9 @@ $modules.delegate('.stop', 'click', function () {
       var $stop = $(this);
       var $start = $('#' + $(this).attr('id') + '.start');
       var $port = $p.children('#port');
-
-      // if ajax works this can be removed
-      $(this).removeClass('running');
-      $('#' + $(this).attr('id') + '.start').removeClass('running');
-      $port.remove();
       $.ajax({
         type: 'GET',
-        url: baseUrl + '/execution/stop?module_name=' + $(this).attr('id'),
+        url: '/execution/stop?module_name=' + $(this).attr('id'),
         dataType: 'json',
         success: function (module) {
           alert('stopped');
@@ -289,7 +369,7 @@ $modules.delegate('.config', 'click', function () {
       var $li = $(this).closest('li');
       $.ajax({
         type: 'GET',
-        url: baseUrl + '/configs/view?module_name=' + $li.attr('name'),
+        url: '/configs/view?module_name=' + $li.attr('name'),
         dataType: 'json',
         success: function (module) {
           $('.bg-modal').css('display', 'flex');
@@ -339,7 +419,7 @@ $body.delegate('#save', 'click', function () {
       console.log(config);
       $.ajax({
         type: 'POST',
-        url: baseUrl + '/configs/update?module_name=' + $(this).attr('class'),
+        url: '/configs/update?module_name=' + $(this).attr('class'),
         data: config,
         success: function (module) {
           console.log(module);

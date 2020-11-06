@@ -99,58 +99,23 @@ $ pytest
 
 ## Contributing a module
 
-In order to build a module there are certain rules and steps to do to ensure your module is working properly:
+In order to build a module there are certain rules and steps to do to ensure your module is working properly. (As this platform is in alpha state, please not that this information is subject to change):
 
-1. Every module is a tornado Application (i.e it implements tornado.web.Application)
+1. Your only way of communication with the platform is via a websocket connection.
+  Our modules all use the same client class. Feel free to also use this websocket client in your module. you can find it in socket_client.py. Please note: You have to change the names of your module in the placeholders (lines 23, 60, 78, 87). Keep in mind to use the exact same name everywhere (also when communicating with the platform (later steps)).
+    If you aim to use this socket client class without modification, you also need to use the token_cache_client.py to store the information about the currently active users. Copy it into your module, it should work out of the box with the socket client.
 
-2. You need to have a config.json somewhere inside your project. This is the only way of getting parameters from outside into your application. Create it even if you don't need any config. Just leave it empty then.
+2. To establish a connection and to communicate with the platform your messages have to be digitally signed. There is a script (signing.py) that provides the generation of a sign and verify key. Execute this script, and you will receive two files: signing_key.key and verify_key.key . Keep those in your modules directory. Keep the signing key secret at all cost. Copy the verify key from the file into the verify_keys.json at the platform. Remember to use the same name as in step 1.
 
-3. this application has to be built inside a main.py file (only this file will be explored by the platform at first glance)
-
-4. your module's current working dir is not automatically added to the sys path.
-    It is at the developers responsibility to ensure imports are working.
-
-    Easiest way to achieve that is to prepend the following code to your main.py (before any other imports):
-    ```python
-    import os
-    import sys
-    sys.path.append(os.path.dirname(__file__))
-    ```
-    By doing that, your current working directory will be added to the sys path, which means that imports will work as per normal.
-
-5. there are a couple of functions that need to be implemented inside your main.py file. The platform will call these functions and might throw an error if they are not present.
-
-    ```python
-    def make_app():
-        # returns your tornado.web.Application
-
-    def apply_config(config):
-        # the platform will call this function before it is started.
-        # You do not need to know the config path from within your module,
-        # the platform will search for it, load the file into a Python Object and
-        # pass it as a parameter to this function
-
-        # Do whatever you need to do with your config.
-        # This is your only way of getting parameters from outside (no argparser or
-        # stuff like that available)
-
-    def stop_signal():
-        # this function is called by the platform when decided to stop your module
-        # for whatever reason
-
-        # Save anything you need to save and be sure to clean up all temporary files
-        # created by this module.
-        # BUT MOST IMPORTANTLY: close all your open connections (especially
-        # WebSockets)
-        # because they would keep on going even though the module is stopped which
-        # may cause undefined behaviour
-        # RequestHandlers do not need to be closed as there are no
-        # keep-alive connections allowed
-    ```
-6. If you plan to also be able to use your module in a standalone way, be sure to protect setup code from being executed when imported by the platform; meaning: wrap it in a
-    ```python
-    if __name__ == '__main__':
-
-    ```
+3. You should be good to go. To initiate a WebSocket connection with the platform and make the platform recognize your module, use the following code snippet:
+```python3
+client = await get_socket_instance()
+response = await client.write({"type": "module_start",
+                               "module_name": "<your_module_name_here>",
+                               "port": <free_port_here>})
+# if response["status"] == "recognized":
+      # you now have an established connection with the platform
+```
+Again, use the same name as in steps 1 and 2.
 
 Once your module is ready for use, commit and create a pull request to [this](https://github.com/Smunfr/sse-platform-modules) repository. Please consider only pushing production-ready code to this repository, do not use it for development.

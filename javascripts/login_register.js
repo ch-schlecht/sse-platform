@@ -1,6 +1,6 @@
 
-var baseUrl = 'https://localhost:8888';
-var newTabUrl = 'https://localhost';
+var baseUrl = window.location.origin;
+var newTabUrl= baseUrl.replace('s','').substr(0, baseUrl.lastIndexOf(':')-1);
 var $body = $('body');
 /**
  * on tabchange- adds or removes selected class from tab
@@ -36,8 +36,10 @@ $(document).ready(function () {
 		var pathname = window.location.pathname; // Returns path only (/path/example.html)
 		var url      = window.location.href;     // Returns full URL (https://example.com/path/example.html)
 		var origin   = window.location.origin;   // Returns base URL (https://example.com)
+		window.history.pushState("login", "SSE Platform Login", origin + '/login?'); //needs firefox 4+, works in chrome
 		window.location.hash = 'login';
-		//window.history.pushState("login", "SSE Platform Login", origin + '/login?'); //needs firefox 4+, works in chrome
+		//$('#login').addClass('selected');
+
 
 });
 
@@ -64,7 +66,6 @@ $(document).ready(function () {
  * save username and password
  */
 function login() {
-
   var username = $('input#username').val();
   var password = $('input#password').val();
 
@@ -81,7 +82,7 @@ function login() {
 
 	$.ajax({
 		type: 'POST',
-		url: baseUrl + '/login?nickname=' + username + '&password=' + password,
+		url: '/login?nickname=' + username + '&password=' + password,
 		success: function (data) {
 			loadMainPage();
 		},
@@ -113,7 +114,7 @@ function register() {
   if (validateEmail(mail)) {
 		$.ajax({
 			type: 'POST',
-			url: baseUrl + '/register?email=' + mail + '&nickname=' + username + '&password=' + password,
+			url: '/register?email=' + mail + '&nickname=' + username + '&password=' + password,
 			success: function (data) {
 				alert('Registered successfully.');
 				loadMainPage();
@@ -152,11 +153,11 @@ function loadMainPage() {
 
 	$.ajax({
 		type: 'GET',
-		url: baseUrl + '/main',
+		url: '/main',
 
 		success: function (data) {
 			setTimeout(function() {
-				window.location.href = baseUrl + '/main';
+				window.location.href = '/main';
 			}, 333);
 		},
 

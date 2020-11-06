@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+        <title> SSE Admin Platform </title>
+        <!-- jQuery -->
+        <script src="https://code.jquery.com/jquery-1.12.4.min.js"
+            integrity="sha384-nvAa0+6Qg9clwYCGGPpDQLVpLNn0fRaROjHqs13t4Ggj3Ez50XnGQqc/r8MhnRDZ"
+            crossorigin="anonymous">
+        </script>
+
+        <!-- custom css -->
+        <link rel="stylesheet" href="/css/main.css">
+    </head>
+    <body>
+        <h1> SSE Admin Platform </h1>
+        <h2> Modules</h2>
+        <ul id="modules">
+        </ul>
+
+        <h2> Users </h2>
+        <div class="container" id="users">
+        </div>
+
+
+
+
+        <script id="runningModulesTemplate" type="text/html">
+          <li>
+            <button id={{!port}} class="module" name={{!name}}>{{!name}}</button>
+          </li>
+        </script>
+
+        <script id="userRoleTemplate" type="text/html">
+          <div class="card" style="width: 20rem;">
+            <div class="card-body">
+              <form id="{{!name}}" onsubmit="return updateUserRole(this)">
+                <div class="form-group">
+                  <label for="roleSelect">{{!name}}</label>
+                  <select class="form-control" id="roleSelect_{{!name}}">
+                    <option value="guest">Guest</option>
+                    <option value="parent">Parent</option>
+                    <option value="teacher">Teacher</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <input type="submit" value="Save"></input>
+                </div>
+              </form>
+            </div>
+
+        </script>
+
+        <button id="logoutBtn" class="logout">Logout</button>
+        <script src="javascripts/admin.js"></script>
+        <script src="javascripts/mustache.js"></script>
+    </body>
+</html>
