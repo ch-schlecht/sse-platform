@@ -4,6 +4,8 @@ if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import tornado.ioloop
+import tornado.escape
+import tornado.httpserver
 import tornado.web
 import tornado.websocket
 import tornado.locks
@@ -230,7 +232,7 @@ class LoginHandler(BaseHandler):
                         "success": True,
                         "access_token": access_token})
         else:
-            self.status(401)
+            self.set_status(401)
             self.write({"status": 401,
                         "success": False,
                         "reason": "password_validation_failed",
@@ -329,6 +331,73 @@ class RegisterHandler(BaseHandler):
             self.write({"status": 200,
                         "success": True,
                         "access_token": access_token})
+
+
+class PasswordHandler(BaseHandler):
+    async def post(self, slug):
+        """
+        POST request of /password/change
+
+            query param: "old_password"
+            query param: "new_password
+        """
+        if slug == "change":
+            if self.current_user:
+                try:
+                    old_password = self.get_argument("old_password")
+                    new_password = self.get_argument("new_password")
+                    user = await queryone("SELECT * FROM users WHERE id = %s", self.current_user)
+                except tornado.web.MissingArgumentError:  # either old or new password have not been sent in the request
+                    self.set_status(400)
+                    self.write({"status": 400,
+                                "reason": "missing_query_parameter",
+                                "redirect_suggestions": ["/login", "/register"]})
+                    self.flush()
+                    self.finish()
+                    return
+
+                # check if old password matches
+                password_validated = await tornado.ioloop.IOLoop.current().run_in_executor(
+                    None,
+                    bcrypt.checkpw,
+                    tornado.escape.utf8(old_password),
+                    tornado.escape.utf8(user['hashed_password'])
+                )
+
+                if password_validated:
+                    new_hashed_password = await tornado.ioloop.IOLoop.current().run_in_executor(
+                        None,
+                        bcrypt.hashpw,
+                        tornado.escape.utf8(new_password),
+                        bcrypt.gensalt(),
+                    )
+
+                    # save the new password in the db
+                    await execute("UPDATE users SET hashed_password = %s WHERE id = %s", tornado.escape.to_unicode(new_hashed_password), user["id"])
+
+                    # invalidate token and cache entry --> force relogin
+                    token_cache().remove(self._access_token)
+                    self.clear_cookie("access_token")
+
+                    self.set_status(200)
+                    self.write({"status": 200,
+                                "success": True,
+                                "redirect": "/login"})
+                else:
+                    self.set_status(400)
+                    self.write({"status": 400,
+                                "reason": "old_password_not_valid",
+                                "redirect_suggestions": ["/login"]})
+
+            else:
+                self.set_status(401)
+                self.write({"status": 401,
+                            "reason": "no_token",
+                            "redirect_suggestions": ["/login"]})
+
+        elif slug == "forgot":
+            pass
+
 
 
 class RoleHandler(BaseHandler):
@@ -515,6 +584,7 @@ def make_app(dev_mode_arg, cookie_secret):
         (r"/register", RegisterHandler),
         (r"/login", LoginHandler),
         (r"/logout", LogoutHandler),
+        (r"/password/\b(change|forgot)\b", PasswordHandler),
         (r"/roles", RoleHandler),
         (r"/users", UserHandler),
         (r"/websocket", WebsocketHandler),
