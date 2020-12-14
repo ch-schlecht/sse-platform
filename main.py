@@ -399,6 +399,57 @@ class PasswordHandler(BaseHandler):
             pass
 
 
+class AccountDeleteHandler(BaseHandler):
+    async def delete(self):
+        """
+        DELETE /account
+        """
+
+        if self.current_user:
+            try:
+                password = self.get_argument("password")
+            except tornado.web.MissingArgumentError:  # password has not been sent in the request
+                self.set_status(400)
+                self.write({"status": 400,
+                            "reason": "missing_query_parameter",
+                            "redirect_suggestions": ["/login", "/register"]})
+                self.flush()
+                self.finish()
+                return
+            user = await queryone("SELECT * FROM users WHERE id = %s", self.current_user)
+
+            # check password validation
+            password_validated = await tornado.ioloop.IOLoop.current().run_in_executor(
+                None,
+                bcrypt.checkpw,
+                tornado.escape.utf8(password),
+                tornado.escape.utf8(user['hashed_password'])
+            )
+
+            if password_validated:
+                await execute("DELETE FROM users WHERE id = %s", self.current_user)  # delete user data
+                # invalidate token and cache entry --> force logout
+                token_cache().remove(self._access_token)
+                self.clear_cookie("access_token")
+
+                # message all modules that this account was deleted
+                data = {"type": "user_delete",
+                        "userid": self.current_user,
+                        "access_token": self._access_token}
+                tornado.ioloop.IOLoop.current().add_callback(WebsocketHandler.broadcast_message, data)
+
+                self.set_status(204)
+            else:
+                self.set_status(401)
+                self.write({"status": 401,
+                            "success": False,
+                            "reason": "password_validation_failed"})
+        else:
+            self.set_status(401)
+            self.write({"status": 401,
+                        "reason": "no_token",
+                        "redirect_suggestions": ["/login"]})
+
 
 class RoleHandler(BaseHandler):
 
@@ -585,6 +636,7 @@ def make_app(dev_mode_arg, cookie_secret):
         (r"/login", LoginHandler),
         (r"/logout", LogoutHandler),
         (r"/password/\b(change|forgot)\b", PasswordHandler),
+        (r"/delete_account", AccountDeleteHandler),
         (r"/roles", RoleHandler),
         (r"/users", UserHandler),
         (r"/websocket", WebsocketHandler),
@@ -630,6 +682,8 @@ async def main():
     servers['platform'] = {"port": CONSTANTS.PORT}
     server_services['platform'] = {}
     server.listen(CONSTANTS.PORT)
+
+    print("Platform started on port: " + str(CONSTANTS.PORT))
 
     shutdown_event = tornado.locks.Event()
     await shutdown_event.wait()
