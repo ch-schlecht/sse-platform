@@ -175,3 +175,21 @@ function loadMainPage() {
 		},
 	});
 }
+
+
+function sendForgotPassword(){
+	let email = $("#emailForgot").val();
+	$.ajax({
+		type: "POST",
+		url: "/password/forgot?email=" + email,
+		success: function(data){
+			alert("An Email has been sent to your adress!");
+		},
+		error: function(xhr, status, error){
+			alert("An unknown error occured");
+			console.log(error);
+			console.log(status);
+			console.log(xhr);
+		}
+	})
+}

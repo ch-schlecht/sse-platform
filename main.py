@@ -23,6 +23,9 @@ from github_access import list_modules
 from db_access import initialize_db, queryone, query, user_exists, NoResultError, is_admin, execute, get_role
 from token_cache import token_cache
 from base64 import b64encode
+import uuid
+import smtplib
+from email.message import EmailMessage
 
 servers = {}
 server_services = {}
@@ -340,6 +343,12 @@ class PasswordHandler(BaseHandler):
 
             query param: "old_password"
             query param: "new_password
+
+        or
+
+        POST request of /password/forgot
+
+            query param: "email"
         """
         if slug == "change":
             if self.current_user:
@@ -396,7 +405,93 @@ class PasswordHandler(BaseHandler):
                             "redirect_suggestions": ["/login"]})
 
         elif slug == "forgot":
-            pass
+            try:
+                email = self.get_argument("email")
+            except tornado.web.MissingArgumentError:
+                self.set_status(400)
+                self.write({"status": 400,
+                            "reason": "missing_query_parameter",
+                            "redirect_suggestions": ["/login", "/register"]})
+                self.flush()
+                self.finish()
+                return
+
+            identifier = str(uuid.uuid4())
+
+            # either set up own smtp server on this host, or use another one an create a secure connection to it
+            # for now use localhost with a debugging smtp server just for development
+            # debugging server: python3 -m smtpd -c DebuggingServer -n localhost:1025
+            # TODO use tls in production
+            with smtplib.SMTP("localhost", 1025) as server:
+                msg = EmailMessage()
+                msg["Subject"] = "Your Link to reset your password"
+                msg["From"] = "no_reply@sse-platform.net"
+                msg["To"] = email
+
+                msg.set_payload("Dear user, this is your link to reset your password: "
+                                "https://localhost:8888/forgot_password?phrase=" + identifier)  # todo generate host and port from config/constants
+                server.send_message(msg)
+
+                await execute("INSERT INTO password_reset(phrase, email) VALUES (%s, %s)", identifier, email)
+
+            self.set_status(204)
+
+
+class ForgotPasswordHandler(BaseHandler):
+    def get(self):
+        self.render("forgot_password.html")
+
+    async def post(self):
+        try:
+            phrase = self.get_argument("phrase")
+            new_pw = self.get_argument("new_password")
+        except tornado.web.MissingArgumentError:
+            self.set_status(400)
+            self.write({"status": 400,
+                        "reason": "missing_query_parameter",
+                        "redirect_suggestions": ["/login", "/register"]})
+            self.flush()
+            self.finish()
+            return
+
+        try:
+            record = await queryone("SELECT * FROM password_reset WHERE phrase = %s", phrase)
+        except NoResultError:
+            self.set_status(400)
+            self.write({"status": 400,
+                        "reason": "phrase_not_valid",
+                        "redirect_suggestions": ["/login", "/register"]})
+            self.flush()
+            self.finish()
+            return
+
+        user = await queryone("SELECT * FROM users WHERE email=%s", record["email"])
+
+        new_hashed_password = await tornado.ioloop.IOLoop.current().run_in_executor(
+            None,
+            bcrypt.hashpw,
+            tornado.escape.utf8(new_pw),
+            bcrypt.gensalt(),
+        )
+        # save the new password in the db
+        await execute("UPDATE users SET hashed_password = %s WHERE id = %s",
+                      tornado.escape.to_unicode(new_hashed_password), user["id"])
+
+        await execute("DELETE FROM password_reset WHERE phrase = %s", phrase)
+
+        # TODO error handling
+
+        self.set_status(200)
+        self.write({"status": 200,
+                    "success": True,
+                    "redirect": "/login"})
+
+
+
+
+
+
+
 
 
 class AccountDeleteHandler(BaseHandler):
@@ -637,6 +732,7 @@ def make_app(dev_mode_arg, cookie_secret):
         (r"/logout", LogoutHandler),
         (r"/password/\b(change|forgot)\b", PasswordHandler),
         (r"/delete_account", AccountDeleteHandler),
+        (r"/forgot_password", ForgotPasswordHandler),
         (r"/roles", RoleHandler),
         (r"/users", UserHandler),
         (r"/websocket", WebsocketHandler),

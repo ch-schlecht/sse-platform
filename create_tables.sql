@@ -5,3 +5,8 @@ CREATE TABLE IF NOT EXISTS users (
     hashed_password VARCHAR NOT NULL,
     role VARCHAR(100)
 );
+
+CREATE TABLE IF NOT EXISTS password_reset (
+    phrase VARCHAR(200) PRIMARY KEY,
+    email VARCHAR(200) NOT NULL UNIQUE
+);
