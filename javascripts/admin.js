@@ -58,6 +58,10 @@ $('.logout').click(function () {
   });
 });
 
+$('.change_password').click(function(){
+  window.location.href = '/password/change';
+});
+
 /**
  * addModuleInstalled - if Module is installed:
  * add moduleTemplate to HTML and sets the ids and classes with module name

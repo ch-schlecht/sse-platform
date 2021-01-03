@@ -337,6 +337,20 @@ class RegisterHandler(BaseHandler):
 
 
 class PasswordHandler(BaseHandler):
+
+    def get(self, slug):
+        """
+        GET request of /password/change
+
+            render the page to change your password
+        """
+
+        if self.current_user:
+            if slug == "change":
+                self.render("change_password.html")
+        else:
+            self.redirect("/login")
+
     async def post(self, slug):
         """
         POST request of /password/change

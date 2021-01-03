@@ -8,6 +8,12 @@ html {
    top:5px;
 }
 
+.change_password{
+    position: fixed;
+    right: 50px;
+    top: 5px;
+}
+
 body {
     font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
     margin: 0px auto;
@@ -108,15 +114,15 @@ textarea {
 }
 
 .close {
-  position: absolute;
-  top: 0;
-  right: 14px;
-  font-size: 42px;
-  transform: rotate(45deg);
-  cursor: pointer;
-  &:hover {
+    position: absolute;
+    top: 0;
+    right: 14px;
+    font-size: 42px;
+    transform: rotate(45deg);
+    cursor: pointer;
+}
+.close:hover {
     color: #666;
-  }
 }
 
 button {

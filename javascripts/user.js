@@ -42,6 +42,10 @@ $('.logout').click(function () {
   });
 });
 
+$('.change_password').click(function(){
+  window.location.href = '/password/change';
+});
+
 $body.delegate('.module', 'click', function () {
     var $port = $(this).attr('id');
     var $name = $(this).attr('name');
