@@ -46,6 +46,33 @@ $('.change_password').click(function(){
   window.location.href = '/password/change';
 });
 
+$('#delete_account').click(function(){
+  $("#modal_placeholder").append(Mustache.render(document.getElementById("delete_account_modal").innerHTML));
+
+  $("#confirm_delete_account").click(function(){
+    if(window.confirm("Do you really want to delete your account. You will no longer be able to connect and your data will be lost.")){
+      let password = $("#password_input").val();
+      $.ajax({
+        type: "DELETE",
+        url: "/delete_account?password=" + password,
+        success: function(){
+          // TODO this href also does not work, but after reloading the page the user gets redirected to login (because no token, so actual logic works)
+          window.location.href = loginURL;
+        },
+        error: function(xhr, status, error){
+          // TODO if error occurs modal will close without showing the alert and console logs are also empty
+          console.log(xhr);
+          console.log(status);
+          console.log(error);
+          if(errorObj.reason == "password_validation_failed"){
+            alert("incorrect password");
+          }
+        }
+      });
+    }
+  });
+});
+
 $body.delegate('.module', 'click', function () {
     var $port = $(this).attr('id');
     var $name = $(this).attr('name');

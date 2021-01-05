@@ -503,15 +503,12 @@ class ForgotPasswordHandler(BaseHandler):
 
 
 
-
-
-
-
-
 class AccountDeleteHandler(BaseHandler):
     async def delete(self):
         """
-        DELETE /account
+        DELETE /delete_account
+
+            query params: password
         """
 
         if self.current_user:
