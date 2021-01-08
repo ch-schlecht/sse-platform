@@ -204,3 +204,10 @@ async def get_role(user_id):
     except Exception as e:
         print(e)
         return None
+
+async def insert_google_user_if_not_exists(name, email, role="guest"):
+    try:
+        await execute("INSERT INTO users(name, email, role, google_user) VALUES (%s, %s, %s, TRUE) ON CONFLICT DO NOTHING", name, email, role)
+    except Exception as e:
+        print(e)
+

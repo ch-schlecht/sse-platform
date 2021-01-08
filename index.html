@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+	<meta name="google-signin-client_id" content="234734700201-pue5m9kgaem5600pb017e3jfbtn2612t.apps.googleusercontent.com">
 	<link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700" rel="stylesheet">
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
  	<link rel="stylesheet" type="text/css" href="css/index.css">
@@ -8,6 +9,8 @@
       integrity="sha384-nvAa0+6Qg9clwYCGGPpDQLVpLNn0fRaROjHqs13t4Ggj3Ez50XnGQqc/r8MhnRDZ"
       crossorigin="anonymous">
   	</script>
+	<script src="https://apis.google.com/js/platform.js" async defer></script>
+
 	<title>Login to SSE-Platform</title>
 </head>
 <body>
@@ -37,6 +40,7 @@
 						</label>
 					</div>
 					<button class="login">Login</button>
+					<div class="g-signin2" data-onsuccess="onSignIn"></div>
 					<a href="" data-toggle="modal" data-target="#forgotModal">Forgot Password?</a>
 				</form>
 				<div id="forgotModal" class="modal fade" role="dialog">
