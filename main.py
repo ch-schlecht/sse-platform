@@ -20,12 +20,15 @@ import nacl.signing
 import nacl.encoding
 import nacl.exceptions
 from github_access import list_modules
-from db_access import initialize_db, queryone, query, user_exists, NoResultError, is_admin, execute, get_role
+from db_access import initialize_db, queryone, query, user_exists, NoResultError, is_admin, execute, get_role, insert_google_user_if_not_exists
 from token_cache import token_cache
 from base64 import b64encode
 import uuid
 import smtplib
 from email.message import EmailMessage
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from google.auth.exceptions import GoogleAuthError
 
 servers = {}
 server_services = {}
@@ -159,12 +162,6 @@ class ExecutionHandler(BaseHandler):
                         "redirect_suggestions": ["/login"]})
 
 
-class CommunicationHandler(tornado.web.RequestHandler):
-
-    def post(self):
-        print('getsome_shit')
-
-
 class LoginHandler(BaseHandler):
     """
     Authenticate a user towards the API
@@ -240,6 +237,68 @@ class LoginHandler(BaseHandler):
                         "success": False,
                         "reason": "password_validation_failed",
                         "redirect_suggestions": ["/login", "/register"]})
+
+
+class GoogleLoginHandler(BaseHandler):
+
+    async def post(self):
+        try:
+            token = self.get_argument("id_token")
+        except tornado.web.MissingArgumentError:
+            self.set_status(400)
+            self.write({"status": 400,
+                        "reason": "missing_query_parameter",
+                        "redirect_suggestions": ["/login", "/register"]})
+            self.flush()
+            self.finish()
+            return
+
+        try:
+            idinfo = id_token.verify_oauth2_token(token, requests.Request(), CONSTANTS.CLIENT_ID)
+        except GoogleAuthError:
+            self.set_status(401)
+            self.write({"status": 401,
+                        "success": False,
+                        "reason": "google_authentication_failed",
+                        "redirect_suggestions": ["/login", "/register"]})
+            self.flush()
+            self.finish()
+            return
+
+        # generate token, store and return it
+        access_token = b64encode(os.urandom(CONSTANTS.TOKEN_SIZE)).decode("utf-8")
+        try:
+             user = await queryone("SELECT * FROM users WHERE email = %s AND google_user = TRUE", idinfo["email"])
+        except NoResultError:
+            await insert_google_user_if_not_exists(idinfo["name"], idinfo["email"])
+            try:
+                user = await queryone("SELECT * FROM users WHERE email = %s AND google_user = TRUE", idinfo["email"])
+            except NoResultError:  # if the user was not added it means that his google account email is already registered with us as a normal account, which ist not allowed
+                self.set_status(401)
+                self.write({"status": 401,
+                            "success": False,
+                            "reason": "email_duplication",
+                            "redirect_suggestions": ["/login", "/register"]})
+                self.flush()
+                self.finish()
+                return
+
+        token_cache().insert(access_token, user["id"], user["name"], user["email"], user["role"])
+        self.set_secure_cookie("access_token", access_token)
+
+        # broadcast user login to modules
+        data = {"type": "user_login",
+                "username": user["name"],
+                "email": user["email"],
+                "id": user["id"],
+                "role": user["role"],
+                "access_token": access_token}
+        tornado.ioloop.IOLoop.current().add_callback(WebsocketHandler.broadcast_message, data)
+
+        self.set_status(200)
+        self.write({"status": 200,
+                    "success": True,
+                    "access_token": access_token})
 
 
 class LogoutHandler(BaseHandler):
@@ -740,6 +799,7 @@ def make_app(dev_mode_arg, cookie_secret):
         (r"/execution/([a-zA-Z\-0-9\.:,_]+)", ExecutionHandler),
         (r"/register", RegisterHandler),
         (r"/login", LoginHandler),
+        (r"/google_signin", GoogleLoginHandler),
         (r"/logout", LogoutHandler),
         (r"/password/\b(change|forgot)\b", PasswordHandler),
         (r"/delete_account", AccountDeleteHandler),

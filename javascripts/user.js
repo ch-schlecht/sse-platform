@@ -22,24 +22,33 @@ $(document).on({
  *
  */
 $('.logout').click(function () {
-  $.ajax({
-    type: 'POST',
-    url: '/logout',
-    success: function (data) {
-      window.location.href = loginURL;
-    },
+    let auth2 = gapi.auth2.getAuthInstance();
+    auth2.signOut().then(function () {
+      document.cookie = "G_AUTHUSER_H= ; expires = Thu, 01 Jan 1970 00:00:00 GMT"
+      document.cookie = "G_ENABLED_IDPS= ; expires = Thu, 01 Jan 1970 00:00:00 GMT"
+      document.cookie = "username-localhost-8888= ; expires = Thu, 01 Jan 1970 00:00:00 GMT"  //todo change on production server to specific adress
+      console.log('User signed out.');
+    });
 
-    error: function (xhr, status, error) {
-      if (xhr.status == 401) {
+    $.ajax({
+      type: 'POST',
+      url: '/logout',
+      success: function (data) {
         window.location.href = loginURL;
-      } else {
-        alert('error logout');
-        console.log(error);
-        console.log(status);
-        console.log(xhr);
-      }
-    },
-  });
+      },
+
+      error: function (xhr, status, error) {
+        if (xhr.status == 401) {
+          window.location.href = loginURL;
+        } else {
+          alert('error logout');
+          console.log(error);
+          console.log(status);
+          console.log(xhr);
+        }
+      },
+    });
+
 });
 
 $('.change_password').click(function(){
@@ -109,3 +118,9 @@ function getRunningModules(){
     },
   });
 }
+function onLoad() {
+  gapi.load('auth2', function() {
+    gapi.auth2.init();
+  });
+  }
+
