@@ -1,10 +1,14 @@
+from __future__ import annotations
+from typing import Optional, Dict
 from datetime import datetime, timedelta
+
+
 from CONSTANTS import TOKEN_TTL
 
-the_token_cache = None
+the_token_cache: Optional[Token_Cache] = None
 
 
-def token_cache():
+def token_cache() -> Token_Cache:
     """
     Constructing function for the Token_Cache class. Since it is a singleton, only use
     this function to access the class. Never create an instance yourself
@@ -34,28 +38,30 @@ class Token_Cache:
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._data = {}
 
-    def insert(self, token, user_id, username, email, role):
+    def insert(self, token: str, user_id: int, username: str, email: str, role: str) -> None:
         """
         Inserts a new token into the cache, which is associated with the user behind the `user_id`.
         The global time to live is one hour, which can be adjusted to your needs in the CONSTANTS file.
 
         :param token: the access token
-        :type token: string
-
         :param user_id: the id of the user this token should be associated to
-        :type user_id: int
+        :param username: the user's name
+        :param email: the user's email adress
+        :param role: the user's role
+        These values will usually be taken from the db on login
 
         """
+
         self._remove_expired()
         cache_obj = {"user_id": user_id, "username": username, "email": email, "role": role, "expires": datetime.now() + timedelta(seconds=TOKEN_TTL)}
         self._data[token] = cache_obj
         print("inserted into cache: ")
         print(cache_obj)
 
-    def get(self, token):
+    def get(self, token: str) -> Optional[Dict]:
         """
         Returns the cache entry for the given token, but only if the token is not expired yet. If the token is expired, None is returned instead.
         Calling the function is treated as if the user does an interaction with the server, therefore the token's TTL is renewed (one hour again)
@@ -65,17 +71,19 @@ class Token_Cache:
         .. code-block:: JSON
 
            {
-            "user_id": 1,
-            "expires": "datetime.datetime object"
+            "user_id": <int>,
+            "username": <str>,
+            "email": <str>,
+            "role": <str>,
+            "expires": <datetime.datetime object>
            }
 
         :param token: the token to check and retrieve the entry to
-        :type token: string
 
         :returns: the cache entry, if the token is not expired, None otherwise
-        :rtype: Union[dict, None]
 
         """
+
         self._remove_expired()
         if token in self._data:
             cache_obj = self._data[token]
@@ -85,43 +93,44 @@ class Token_Cache:
         else:
             return None
 
-    def remove(self, token):
+    def remove(self, token: str) -> None:
         """
-        Removes a token from the cache. This indicates the user is logging out and to proceed authentication is required again
+        Removes a token from the cache. This indicates the user is logging out and to proceed, authentication is required again
 
         :param token: the token to remove from the cache
-        :type token: string
 
         """
+
         self._remove_expired()
         if token in self._data:
             print("removed from cache:")
             print(self._data[token])
             del self._data[token]
 
-    def _update_ttl(self, token):
+    def _update_ttl(self, token: str) -> None:
         """
         Helper function to renew the TTL of the give token. Not meant to be called from outside
 
         .. warning:: do not call this function explicitely
 
         :param token: the token whose ttl should be renewed
-        :type token: string
 
         """
+
         if token in self._data:
             self._data[token]["expires"] = datetime.now() + timedelta(seconds=TOKEN_TTL)
             #print("updated token ttl to: ")
             #print(self._data[token])
 
-    def _remove_expired(self):
+    def _remove_expired(self) -> None:
         """
-        Helper function to remove expired tokens. This prevents the cache to become too large.
+        Helper function to remove expired tokens. This prevents the cache from becoming too large.
         This function is not meant to be called from outside
 
         .. warning:: do not call this function explicitely
 
         """
+
         for token in list(self._data):
             if self._data[token]["expires"] < datetime.now():
                 del self._data[token]
