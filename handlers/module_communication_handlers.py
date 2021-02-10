@@ -33,7 +33,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
         """
 
         message = tornado.escape.json_decode(message)
-        with open("../verify_keys.json", "r") as fp:
+        with open("verify_keys.json", "r") as fp:
             verify_keys = json.load(fp)
 
         origin = message["origin"]
@@ -130,6 +130,12 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
                                 "username": username,
                                 "role": result["role"],
                                 "resolve_id": json_message["resolve_id"]})
+
+        elif json_message["type"] == "get_running_modules":
+            data = {}
+            for module_name in global_vars.servers.keys():
+                data[module_name] = {"port": global_vars.servers[module_name]["port"]}
+            self.write_message({"running_modules": data})
 
     def on_close(self):
         """
