@@ -1,5 +1,5 @@
 var baseUrl = window.location.origin;
-var newTabUrl= baseUrl.replace('s','').substr(0, baseUrl.lastIndexOf(':')-1);
+var newTabUrl= baseUrl.replace('https','http').substr(0, baseUrl.lastIndexOf(':'));
 var loginURL = baseUrl + '/login';
 var $modules = $('#modules');
 var modulesInstalledList = [];
