@@ -26,7 +26,7 @@ async def get_socket_instance() -> Client:
 
     global the_websocket_client
     if the_websocket_client is None:
-        the_websocket_client = Client(tornado.httpclient.HTTPRequest("wss://localhost:8888/websocket", validate_cert=False,
+        the_websocket_client = Client(tornado.httpclient.HTTPRequest("ws://localhost:8888/websocket", validate_cert=False,
                                       body=json.dumps({"type": "module_socket_connect", "module": "<your_module_name_here>"}), allow_nonstandard_methods=True))
         await the_websocket_client._await_init()
     return the_websocket_client
