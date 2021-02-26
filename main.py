@@ -78,12 +78,14 @@ async def main() -> None:
         if args.config != CONSTANTS.CONFIG_PATH:
             CONSTANTS.CONFIG_PATH = args.config
 
+        """
         if ('ssl_cert' in config) and ('ssl_key' in config):
             ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
             ssl_ctx.load_cert_chain(config['ssl_cert'], config['ssl_key'])
         else:
             print('missing ssl_cert or ssl_key in the config or an error occured when reading the file')
             sys.exit(-1)
+        """
     else:
         print('config not supplied or an error occured when reading the file')
         sys.exit(-1)
@@ -92,7 +94,7 @@ async def main() -> None:
     await initialize_db(args.create_admin)
 
     app = make_app(config["cookie_secret"])
-    server = tornado.httpserver.HTTPServer(app, ssl_options=ssl_ctx)
+    server = tornado.httpserver.HTTPServer(app)
     global_vars.servers['platform'] = {"port": CONSTANTS.PORT}
     server.listen(CONSTANTS.PORT)
 
