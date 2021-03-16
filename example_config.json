@@ -1,6 +1,4 @@
 {
-    "ssl_cert": "path/to/ssl/cert.crt",
-    "ssl_key": "path/to/ssl/key.key",
     "pguser": "admin",
     "pgpassword": "<admin_password_goes_here>",
     "pghost": "localhost",
@@ -9,5 +7,9 @@
     "platform_admin_username": "admin",
     "platform_admin_password": "<admin_password_goes_here",
     "platform_admin_email": "admin@testmail.de",
-    "cookie_secret": "<32byte_random_string_goes_here>"
+    "cookie_secret": "<32byte_random_string_goes_here>",
+    "routing": {
+        "module1": "http://sub.domain.tld:port",
+        "module2": "http://sub.domain.tld:port"
+    }
 }

@@ -22,6 +22,7 @@ from handlers.main_handler import MainHandler
 from handlers.module_communication_handlers import WebsocketHandler
 from handlers.running_handler import RunningHandler
 from handlers.user_management_handlers import AccountDeleteHandler, RoleHandler, UserHandler
+from handlers.util_handlers import RoutingHandler
 
 
 def make_app(cookie_secret: str) -> tornado.web.Application:
@@ -46,6 +47,7 @@ def make_app(cookie_secret: str) -> tornado.web.Application:
         (r"/delete_account", AccountDeleteHandler),
         (r"/forgot_password", ForgotPasswordHandler),
         (r"/roles", RoleHandler),
+        (r"/routing", RoutingHandler),
         (r"/users", UserHandler),
         (r"/websocket", WebsocketHandler),
         (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"}),
@@ -78,14 +80,9 @@ async def main() -> None:
         if args.config != CONSTANTS.CONFIG_PATH:
             CONSTANTS.CONFIG_PATH = args.config
 
-        """
-        if ('ssl_cert' in config) and ('ssl_key' in config):
-            ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-            ssl_ctx.load_cert_chain(config['ssl_cert'], config['ssl_key'])
-        else:
-            print('missing ssl_cert or ssl_key in the config or an error occured when reading the file')
-            sys.exit(-1)
-        """
+        if "routing" in config:
+            global_vars.routing = config["routing"]
+
     else:
         print('config not supplied or an error occured when reading the file')
         sys.exit(-1)

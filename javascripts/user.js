@@ -3,8 +3,10 @@ var $body = $('body');
 var baseUrl = window.location.origin;
 var newTabUrl= baseUrl.replace('s','').substr(0, baseUrl.lastIndexOf(':')-1);
 var loginURL = baseUrl + '/login';
+var routingTable = {};
 
 $(document).ready(function() {
+  getRouting();
   getRunningModules();
 });
 
@@ -88,7 +90,7 @@ $body.delegate('.module', 'click', function () {
     var tailUrl = '';
     //modify URL if its SocialServ or chatsystem
     if($name == 'SocialServ' || $name == 'chatsystem') tailUrl = '/main';
-    var win = window.open('' + newTabUrl + ':' + $port + '' + tailUrl, '_blank');
+    var win = window.open(routingTable[$name] + tailUrl, '_blank');
     if (win) {
       win.focus();
     } else {
@@ -122,5 +124,24 @@ function onLoad() {
   gapi.load('auth2', function() {
     gapi.auth2.init();
   });
-  }
+}
+
+/**
+ * get the routing table to correctly set urls of the modules
+ */
+function getRouting(){
+  $.ajax({
+    type: "GET",
+    url: "/routing",
+    success: function(response){
+      routingTable = response;
+      console.log(routingTable);
+    },
+    error: function(xhr, status, error){
+      if(xhr.status === 401){
+        window.location.href = loginURL;
+      }
+    }
+  });
+}
 
