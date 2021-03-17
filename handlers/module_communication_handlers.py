@@ -85,8 +85,6 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
         elif json_message["type"] == "user_logout":
             token = json_message["access_token"]
             token_cache().remove(token)
-            if "resolve_id" in json_message:
-                del json_message["resolve_id"]
             self.broadcast_message(json_message)  # broadcast logout to all other modules
             self.write_message({"type":"user_logout_response",
                                 "success": True,
