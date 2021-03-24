@@ -8,6 +8,7 @@ import tornado.web
 from db_access import execute, is_admin, query, queryone
 from handlers.base_handler import BaseHandler
 from handlers.module_communication_handlers import WebsocketHandler
+from logger_factory import log_access
 from token_cache import token_cache
 
 
@@ -17,6 +18,7 @@ class AccountDeleteHandler(BaseHandler, metaclass=ABCMeta):
 
     """
 
+    @log_access
     async def delete(self):
         """
         DELETE request of /delete_account
@@ -86,6 +88,7 @@ class RoleHandler(BaseHandler, metaclass=ABCMeta):
 
     """
 
+    @log_access
     async def get(self):
         """
         GET request of /roles
@@ -109,6 +112,7 @@ class RoleHandler(BaseHandler, metaclass=ABCMeta):
                         "reason": "no_token",
                         "redirect_suggestions": ["/login"]})
 
+    @log_access
     async def post(self):
         """
         POST request of /roles
@@ -153,6 +157,7 @@ class UserHandler(BaseHandler, metaclass=ABCMeta):
 
     """
 
+    @log_access
     async def get(self):
         """
         GET request of /users

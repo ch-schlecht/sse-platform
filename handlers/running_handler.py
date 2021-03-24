@@ -2,6 +2,7 @@ from abc import ABCMeta
 
 import global_vars
 from handlers.base_handler import BaseHandler
+from logger_factory import log_access
 
 
 class RunningHandler(BaseHandler, metaclass=ABCMeta):
@@ -10,6 +11,7 @@ class RunningHandler(BaseHandler, metaclass=ABCMeta):
 
     """
 
+    @log_access
     async def get(self):
         """
         GET request of /execution/running

@@ -2,6 +2,7 @@ from abc import ABCMeta
 
 from db_access import is_admin
 from handlers.base_handler import BaseHandler
+from logger_factory import log_access
 
 
 class MainHandler(BaseHandler, metaclass=ABCMeta):
@@ -10,6 +11,7 @@ class MainHandler(BaseHandler, metaclass=ABCMeta):
 
     """
 
+    @log_access
     async def get(self):
         """
         GET request for the main page. If the user is an admin, admin.html is rendered, user.html otherwise

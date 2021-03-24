@@ -23,6 +23,23 @@ from handlers.module_communication_handlers import WebsocketHandler
 from handlers.running_handler import RunningHandler
 from handlers.user_management_handlers import AccountDeleteHandler, RoleHandler, UserHandler
 from handlers.util_handlers import RoutingHandler
+from logger_factory import get_logger
+
+logger = get_logger(__name__)
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    """
+    any unhandled exceptions get passed to our logger, so that we also have complete stacktraces of exceptions in the logfile
+    """
+
+    if issubclass(exc_type, KeyboardInterrupt):  # ignore KeyboardInterrupt exception, they always appear when stopping the script with CTRL + C
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+
+sys.excepthook = handle_exception  # register our exception handler to the exception hook
 
 
 def make_app(cookie_secret: str) -> tornado.web.Application:
@@ -84,7 +101,7 @@ async def main() -> None:
             global_vars.routing = config["routing"]
 
     else:
-        print('config not supplied or an error occured when reading the file')
+        logger.critical('config not supplied or an error occured when reading the file')
         sys.exit(-1)
 
     # init database
@@ -95,7 +112,7 @@ async def main() -> None:
     global_vars.servers['platform'] = {"port": CONSTANTS.PORT}
     server.listen(CONSTANTS.PORT)
 
-    print("Platform started on port: " + str(CONSTANTS.PORT))
+    logger.info("Platform started on port: " + str(CONSTANTS.PORT))
 
     shutdown_event = tornado.locks.Event()
     await shutdown_event.wait()

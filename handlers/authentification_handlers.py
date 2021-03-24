@@ -17,6 +17,7 @@ import CONSTANTS
 from db_access import execute, get_role, insert_google_user_if_not_exists, NoResultError, queryone, user_exists
 from handlers.base_handler import BaseHandler
 from handlers.module_communication_handlers import WebsocketHandler
+from logger_factory import log_access
 from token_cache import token_cache
 
 
@@ -26,6 +27,7 @@ class LoginHandler(BaseHandler, metaclass=ABCMeta):
 
     """
 
+    @log_access
     def get(self):
         """
         render the login page
@@ -39,6 +41,7 @@ class LoginHandler(BaseHandler, metaclass=ABCMeta):
 
         self.render("../html/index.html")
 
+    @log_access
     async def post(self):
         """
         POST request of /login
@@ -120,6 +123,7 @@ class LogoutHandler(BaseHandler, metaclass=ABCMeta):
     Logout Endpoint
     """
 
+    @log_access
     def post(self):
         """
         POST request of /logout
@@ -150,6 +154,7 @@ class RegisterHandler(BaseHandler, metaclass=ABCMeta):
     Register an account towards the Platform
     """
 
+    @log_access
     def get(self):
         """
         GET request /register
@@ -164,6 +169,7 @@ class RegisterHandler(BaseHandler, metaclass=ABCMeta):
 
         self.render("../html/index.html")
 
+    @log_access
     async def post(self):
         """
         POST request of /register
@@ -241,6 +247,7 @@ class GoogleLoginHandler(BaseHandler, metaclass=ABCMeta):
 
     """
 
+    @log_access
     async def post(self):
         """
         POST request of /google_signin
@@ -320,6 +327,7 @@ class PasswordHandler(BaseHandler, metaclass=ABCMeta):
 
     """
 
+    @log_access
     def get(self, slug):
         """
         GET request of /password/change
@@ -338,6 +346,7 @@ class PasswordHandler(BaseHandler, metaclass=ABCMeta):
         else:
             self.redirect("/login")
 
+    @log_access
     async def post(self, slug):
         """
         POST request of /password/change
@@ -461,6 +470,7 @@ class ForgotPasswordHandler(BaseHandler, metaclass=ABCMeta):
 
     """
 
+    @log_access
     def get(self):
         """
         GET request of /forgot_password
@@ -470,6 +480,7 @@ class ForgotPasswordHandler(BaseHandler, metaclass=ABCMeta):
 
         self.render("../html/forgot_password.html")
 
+    @log_access
     async def post(self):
         """
         POST request of /forgot_password
