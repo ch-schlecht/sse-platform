@@ -3,8 +3,10 @@ var $body = $('body');
 var baseUrl = window.location.origin;
 var newTabUrl= baseUrl.replace('s','').substr(0, baseUrl.lastIndexOf(':')-1);
 var loginURL = baseUrl + '/login';
+var routingTable = {};
 
 $(document).ready(function() {
+  getRouting();
   getRunningModules();
 });
 
@@ -22,23 +24,63 @@ $(document).on({
  *
  */
 $('.logout').click(function () {
-  $.ajax({
-    type: 'POST',
-    url: '/logout',
-    success: function (data) {
-      window.location.href = loginURL;
-    },
+    let auth2 = gapi.auth2.getAuthInstance();
+    auth2.signOut().then(function () {
+      document.cookie = "G_AUTHUSER_H= ; expires = Thu, 01 Jan 1970 00:00:00 GMT"
+      document.cookie = "G_ENABLED_IDPS= ; expires = Thu, 01 Jan 1970 00:00:00 GMT"
+      document.cookie = "username-localhost-8888= ; expires = Thu, 01 Jan 1970 00:00:00 GMT"  //todo change on production server to specific adress
+      console.log('User signed out.');
+    });
 
-    error: function (xhr, status, error) {
-      if (xhr.status == 401) {
+    $.ajax({
+      type: 'POST',
+      url: '/logout',
+      success: function (data) {
         window.location.href = loginURL;
-      } else {
-        alert('error logout');
-        console.log(error);
-        console.log(status);
-        console.log(xhr);
-      }
-    },
+      },
+
+      error: function (xhr, status, error) {
+        if (xhr.status == 401) {
+          window.location.href = loginURL;
+        } else {
+          alert('error logout');
+          console.log(error);
+          console.log(status);
+          console.log(xhr);
+        }
+      },
+    });
+
+});
+
+$('.change_password').click(function(){
+  window.location.href = '/password/change';
+});
+
+$('#delete_account').click(function(){
+  $("#modal_placeholder").append(Mustache.render(document.getElementById("delete_account_modal").innerHTML));
+
+  $("#confirm_delete_account").click(function(){
+    if(window.confirm("Do you really want to delete your account. You will no longer be able to connect and your data will be lost.")){
+      let password = $("#password_input").val();
+      $.ajax({
+        type: "DELETE",
+        url: "/delete_account?password=" + password,
+        success: function(){
+          // TODO this href also does not work, but after reloading the page the user gets redirected to login (because no token, so actual logic works)
+          window.location.href = loginURL;
+        },
+        error: function(xhr, status, error){
+          // TODO if error occurs modal will close without showing the alert and console logs are also empty
+          console.log(xhr);
+          console.log(status);
+          console.log(error);
+          if(errorObj.reason == "password_validation_failed"){
+            alert("incorrect password");
+          }
+        }
+      });
+    }
   });
 });
 
@@ -48,7 +90,7 @@ $body.delegate('.module', 'click', function () {
     var tailUrl = '';
     //modify URL if its SocialServ or chatsystem
     if($name == 'SocialServ' || $name == 'chatsystem') tailUrl = '/main';
-    var win = window.open('' + newTabUrl + ':' + $port + '' + tailUrl, '_blank');
+    var win = window.open(routingTable[$name] + tailUrl, '_blank');
     if (win) {
       win.focus();
     } else {
@@ -78,3 +120,28 @@ function getRunningModules(){
     },
   });
 }
+function onLoad() {
+  gapi.load('auth2', function() {
+    gapi.auth2.init();
+  });
+}
+
+/**
+ * get the routing table to correctly set urls of the modules
+ */
+function getRouting(){
+  $.ajax({
+    type: "GET",
+    url: "/routing",
+    success: function(response){
+      routingTable = response;
+      console.log(routingTable);
+    },
+    error: function(xhr, status, error){
+      if(xhr.status === 401){
+        window.location.href = loginURL;
+      }
+    }
+  });
+}
+

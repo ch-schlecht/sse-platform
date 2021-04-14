@@ -175,3 +175,47 @@ function loadMainPage() {
 		},
 	});
 }
+
+
+function sendForgotPassword(){
+	let email = $("#emailForgot").val();
+	$.ajax({
+		type: "POST",
+		url: "/password/forgot?email=" + email,
+		success: function(data){
+			alert("An Email has been sent to your adress!");
+		},
+		error: function(xhr, status, error){
+			alert("An unknown error occured");
+			console.log(error);
+			console.log(status);
+			console.log(xhr);
+		}
+	})
+}
+
+function onSignIn(googleUser) {
+	let profile = googleUser.getBasicProfile();
+	let id_token = googleUser.getAuthResponse().id_token;
+	console.log(id_token);
+	console.log('ID: ' + profile.getId()); // Do not send to your backend! Use an ID token instead.
+	console.log('Name: ' + profile.getName());
+	console.log('Email: ' + profile.getEmail()); // This is null if the 'email' scope is not present.
+
+	$.ajax({
+		type: "POST",
+		url: "/google_signin?id_token=" + id_token,
+		success: function(data){
+			setTimeout(function() {
+				window.location.href = '/main';
+			}, 333);
+		},
+		error: function(xhr, status, error){
+			alert("An unknown error occured");
+			console.log(error);
+			console.log(status);
+			console.log(xhr);
+		}
+	});
+}
+

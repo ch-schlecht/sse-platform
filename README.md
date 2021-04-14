@@ -13,7 +13,7 @@ In order to be able to run this software, some modules are required to be instal
 $ pip install -r requirements.txt
 ```
 
-Furthermore you will need PostgreSQL to store users. Please refer to any of their installation guides for you OS.
+Furthermore, you will need PostgreSQL to store users. Please refer to any of their installation guides for you OS.
 Once PostgreSQL is installed, you will need to create a user and database. Open a Postgres Shell as postgres user:
 ```sh
 $ sudo -u postgres psql
@@ -99,13 +99,13 @@ $ pytest
 
 ## Contributing a module
 
-In order to build a module there are certain rules and steps to do to ensure your module is working properly. (As this platform is in alpha state, please not that this information is subject to change):
+In order to build a module there are certain rules and steps to take to ensure your module is working properly. (As this platform is in alpha state, please note that this information is subject to change):
 
 1. Your only way of communication with the platform is via a websocket connection.
-  Our modules all use the same client class. Feel free to also use this websocket client in your module. you can find it in socket_client.py. Please note: You have to change the names of your module in the placeholders (lines 23, 60, 78, 87). Keep in mind to use the exact same name everywhere (also when communicating with the platform (later steps)).
-    If you aim to use this socket client class without modification, you also need to use the token_cache_client.py to store the information about the currently active users. Copy it into your module, it should work out of the box with the socket client.
+  Our modules all use the same client class. Feel free to also use this websocket client in your module. you can find it in client_examples/socket_client.py. Please note: You have to change the names of your module in the placeholders (lines 30, 98, 132, 141). Keep in mind to use the exact same name everywhere (also when communicating with the platform (later steps)).
+    If you aim to use this socket client class without modification, you also need to use the client_examples/token_cache_client.py to store the information about the currently active users. Copy it into your module, it should work out of the box with the socket client.
 
-2. To establish a connection and to communicate with the platform your messages have to be digitally signed. There is a script (signing.py) that provides the generation of a sign and verify key. Execute this script, and you will receive two files: signing_key.key and verify_key.key . Keep those in your modules directory. Keep the signing key secret at all cost. Copy the verify key from the file into the verify_keys.json at the platform. Remember to use the same name as in step 1.
+2. To establish a connection and to communicate with the platform your messages have to be digitally signed. There is a script (client_examples/signing.py) that provides the generation of a sign and verify key. Execute this script, and you will receive two files: signing_key.key and verify_key.key . Keep those in your modules directory. Keep the signing key secret at all cost. Copy the verify key from the file into the verify_keys.json at the platform. Remember to use the same name as in step 1.
 
 3. You should be good to go. To initiate a WebSocket connection with the platform and make the platform recognize your module, use the following code snippet:
 ```python3

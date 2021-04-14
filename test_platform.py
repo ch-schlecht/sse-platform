@@ -5,9 +5,7 @@ import json
 import contextlib
 import socket
 import tornado
-from github import Github
 from util import list_installed_modules, get_config_path, load_config, write_config, remove_module_files, determine_free_port
-from github_access import list_modules, remove_filename_from_path, clone
 from main import make_app
 from db_access import initialize_db
 
@@ -71,53 +69,6 @@ def test_determine_free_port():
         except socket.error:
             assert False
         assert True
-
-
-################################################
-#              github_access.py test           #
-################################################
-def module_for_testing_in_remote(repo):
-    contents = repo.get_dir_contents("")
-    for module in contents:
-        if "test-module" == module.name:
-            return True
-    return False
-
-
-@pytest.fixture(scope="session")
-def setup_github_access(request):
-    github = Github()  # personal access token, replace by dedicated account later
-    repo = github.get_repo("Smunfr/sse-platform-modules")
-
-    if module_for_testing_in_remote(repo) is False:
-        repo.create_file("test-module/README.md", "recreate test module", """this module is solely for testing.
-                                                                             it saves computation time on the tests because no
-                                                                             module for testing has to be created in this repo.
-                                                                             please don't delete this. However, if you do, it will be regenerated.""")
-        repo.create_file("test-module/config.json", "recreate test module ", json.dumps({"test": "test", "port": 123456}))
-
-    def clean():
-        if os.path.isdir("modules/test-module"):
-            shutil.rmtree("modules/test-module")
-
-    request.addfinalizer(clean)
-
-
-def test_list_modules(setup_github_access):
-    modules = list_modules()
-    assert modules is not False  # empty list evaluates to false
-
-
-def test_remove_filename_from_path():
-    path = "modules/test/"
-    filename = "README.md"
-    path_without_filename = remove_filename_from_path(path + filename, filename)
-    assert path_without_filename == path
-
-
-def test_clone(setup_github_access):
-    clone("test-module")
-    assert os.path.exists("modules/test-module") and os.path.exists("modules/test-module/README.md")
 
 
 ################################################

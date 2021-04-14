@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="google-signin-client_id" content="234734700201-pue5m9kgaem5600pb017e3jfbtn2612t.apps.googleusercontent.com">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+        <title> SSE-Platform </title>
+        <!-- custom css -->
+        <link rel="stylesheet" href="/css/main.css">
+        <!-- jQuery -->
+        <script src="https://code.jquery.com/jquery-1.12.4.min.js"
+            integrity="sha384-nvAa0+6Qg9clwYCGGPpDQLVpLNn0fRaROjHqs13t4Ggj3Ez50XnGQqc/r8MhnRDZ"
+            crossorigin="anonymous">
+        </script>
+        <script src="https://apis.google.com/js/platform.js?onload=onLoad" async defer></script>
+
+    </head>
+    <body>
+        <h1> SSE-Platform </h1>
+        <h2> Modules</h2>
+        <ul id="modules">
+        </ul>
+        <div id="modal_placeholder"></div>
+        <button id="change_password" class="btn change_password">Change Password</button>
+        <button id="logoutBtn" class="btn logout">Logout</button>
+        <button id="delete_account" class="btn red" style="">Delete Account</button>
+        <script id="runningModulesTemplate" type="text/html">
+          <li>
+            <button id={{!port}} class="module" name={{!name}}>{{!name}}</button>
+          </li>
+        </script>
+        <script src="../javascripts/user.js"></script>
+        <script src="../javascripts/mustache.js"></script>
+
+        <script id="delete_account_modal" type="text/html">
+            <div class="modal" role="dialog" tabindex="-1">
+                <div class="modal-content">
+                    <form id="delete_account_form">
+                        <label for="password_input">Enter your password:</label>
+                        <input id="password_input" type="password" />
+                        <button id="confirm_delete_account" class="btn red">Delete Account</button>
+                    </form>
+                </div>
+            </div>
+        </script>
+    </body>
+</html>
