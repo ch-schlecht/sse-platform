@@ -85,7 +85,11 @@ class Token_Cache:
         """
 
         self._remove_expired()
+        print('there is an get')
+        print(self._data)
+        print(token)
         if token in self._data:
+            print('Get token')
             cache_obj = self._data[token]
             if cache_obj["expires"] > datetime.now():
                 self._update_ttl(token)  # renew ttl

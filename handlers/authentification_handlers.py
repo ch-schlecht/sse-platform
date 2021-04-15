@@ -38,7 +38,6 @@ class LoginHandler(BaseHandler, metaclass=ABCMeta):
             n/a
 
         """
-
         self.render("../html/index.html")
 
     @log_access
@@ -94,8 +93,11 @@ class LoginHandler(BaseHandler, metaclass=ABCMeta):
 
             role = await get_role(user["id"])
             token_cache().insert(access_token, user['id'], user["name"], user["email"], role)
-
-            self.set_secure_cookie("access_token", access_token, domain="." + CONSTANTS.DOMAIN)
+            #, domain="." + CONSTANTS.DOMAIN
+            self.set_secure_cookie("access_token", access_token)
+            print(access_token)
+            print('Access token')
+            print(self.get_secure_cookie('access_token'))
 
             # broadcast user login to modules
             data = {"type": "user_login",
