@@ -17,7 +17,7 @@ packaging==19.2
 pathlib2==2.3.5
 pluggy==0.13.1
 psycopg2==2.8.4
-py==1.8.0
+py==1.10.0
 PyGithub==1.44.1
 Pygments==2.5.2
 PyJWT==1.7.1
