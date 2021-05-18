@@ -95,7 +95,10 @@ class LoginHandler(BaseHandler, metaclass=ABCMeta):
             role = await get_role(user["id"])
             token_cache().insert(access_token, user['id'], user["name"], user["email"], role)
 
-            self.set_secure_cookie("access_token", access_token, domain="." + CONSTANTS.DOMAIN)
+            if CONSTANTS.DOMAIN == "localhost":
+                self.set_secure_cookie("access_token", access_token)
+            else:
+                self.set_secure_cookie("access_token", access_token, domain="." + CONSTANTS.DOMAIN)
 
             # broadcast user login to modules
             data = {"type": "user_login",
@@ -141,7 +144,10 @@ class LogoutHandler(BaseHandler, metaclass=ABCMeta):
                 "access_token": self._access_token}
         tornado.ioloop.IOLoop.current().add_callback(WebsocketHandler.broadcast_message, data)
 
-        self.clear_cookie("access_token", domain="." + CONSTANTS.DOMAIN)
+        if CONSTANTS.DOMAIN == "localhost":
+            self.clear_cookie("access_token")
+        else:
+            self.clear_cookie("access_token", domain="." + CONSTANTS.DOMAIN)
 
         self.set_status(200)
         self.write({"status": 200,
@@ -224,7 +230,10 @@ class RegisterHandler(BaseHandler, metaclass=ABCMeta):
             role = await get_role(user_id)
             token_cache().insert(access_token, user_id, nickname, email, role)
 
-            self.set_secure_cookie("access_token", access_token, domain="." + CONSTANTS.DOMAIN)
+            if CONSTANTS.DOMAIN == "localhost":
+                self.set_secure_cookie("access_token", access_token)
+            else:
+                self.set_secure_cookie("access_token", access_token, domain="." + CONSTANTS.DOMAIN)
 
             # broadcast user login to modules
             data = {"type": "user_login",
@@ -304,7 +313,11 @@ class GoogleLoginHandler(BaseHandler, metaclass=ABCMeta):
                 return
 
         token_cache().insert(access_token, user["id"], user["name"], user["email"], user["role"])
-        self.set_secure_cookie("access_token", access_token, domain="." + CONSTANTS.DOMAIN)
+
+        if CONSTANTS.DOMAIN == "localhost":
+            self.set_secure_cookie("access_token", access_token)
+        else:
+            self.set_secure_cookie("access_token", access_token, domain="." + CONSTANTS.DOMAIN)
 
         # broadcast user login to modules
         data = {"type": "user_login",
