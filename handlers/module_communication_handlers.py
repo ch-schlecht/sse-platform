@@ -127,11 +127,11 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
         elif json_message["type"] == "update_token_ttl":
             renewed_user = token_cache().get(json_message["access_token"])
             if renewed_user is not None:
-                self.write({"type": "update_token_ttl_response",
+                self.write_message({"type": "update_token_ttl_response",
                             "success": True,
                             "resolve_id": json_message["resolve_id"]})
             else:
-                self.write({"type": "update_token_ttl_response",
+                self.write_message({"type": "update_token_ttl_response",
                             "success": False,
                             "resolve_id": json_message["resolve_id"]})
 
