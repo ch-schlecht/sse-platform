@@ -1,6 +1,7 @@
 import json
 from abc import ABCMeta
 from typing import Dict, Optional, Union
+import os
 
 import nacl.encoding
 import nacl.exceptions
@@ -8,6 +9,7 @@ import nacl.signing
 import tornado.escape
 import tornado.websocket
 
+import CONSTANTS
 import global_vars
 from db_access import query, queryone
 from token_cache import token_cache
@@ -148,6 +150,40 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
             for module_name in global_vars.servers.keys():
                 data[module_name] = {"port": global_vars.servers[module_name]["port"]}
             self.write_message({"running_modules": data})
+
+        elif json_message["type"] == "message_module":
+            # check if the module name is online (name check) and forward them the message if yes
+            online = False
+            for client in self.connections:
+                if client.module_name == json_message["to"]:
+                    client.write_message(json_message)
+                    online = True
+                    break
+
+            # not found, reply module offline
+            if not online:
+                self.write_message({"type": "message_module_response",
+                                    "success": False,
+                                    "reason": "module_offline",
+                                    "resolve_id": json_message["resolve_id"]})
+
+        elif json_message["type"] == "message_module_response":
+            for client in self.connections:
+                if client.module_name == json_message["to"]:
+                    client.write_message(json_message)
+
+        elif json_message["type"] == "get_template":
+            template_name = json_message["template_name"]
+            if os.path.isdir(CONSTANTS.TEMPLATES_DIR):
+                print("yes")
+                if os.path.isfile(CONSTANTS.TEMPLATES_DIR + "/" + template_name):
+                    print("yes")
+                    with open(CONSTANTS.TEMPLATES_DIR + "/" + template_name, "r") as fp:
+                        template_str = fp.read()
+
+                        self.write_message({"type": "get_template_response",
+                                            "template": template_str,
+                                            "resolve_id": json_message["resolve_id"]})
 
     def on_close(self):
         """
