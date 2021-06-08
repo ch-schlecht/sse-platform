@@ -175,15 +175,27 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
         elif json_message["type"] == "get_template":
             template_name = json_message["template_name"]
             if os.path.isdir(CONSTANTS.TEMPLATES_DIR):
-                print("yes")
                 if os.path.isfile(CONSTANTS.TEMPLATES_DIR + "/" + template_name):
-                    print("yes")
                     with open(CONSTANTS.TEMPLATES_DIR + "/" + template_name, "r") as fp:
                         template_str = fp.read()
 
                         self.write_message({"type": "get_template_response",
                                             "template": template_str,
                                             "resolve_id": json_message["resolve_id"]})
+
+        elif json_message["type"] == "post_template":
+            template_name = json_message["template_name"]
+
+            if not os.path.isdir(CONSTANTS.TEMPLATES_DIR):
+                os.mkdir(CONSTANTS.TEMPLATES_DIR)
+
+            with open(CONSTANTS.TEMPLATES_DIR + "/" + template_name, "w") as fp:
+                fp.write(json_message["template"])
+
+                self.write_message({"type": "get_template_response",
+                                    "success": True,
+                                    "resolve_id": json_message["resolve_id"]})
+
 
     def on_close(self):
         """
