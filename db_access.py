@@ -87,7 +87,7 @@ async def initialize_tables(create_admin: bool) -> None:
             admin_passwd = config['platform_admin_password']
             admin_email = config['platform_admin_email']
 
-            hashed_password = bcrypt.hashpw(tornado.escape.utf8(admin_passwd), bcrypt.gensalt())
+            hashed_password = bcrypt.hashpw(tornado.escape.utf8(admin_passwd), bcrypt.gensalt(prefix=b"2a"))
 
             await execute("INSERT INTO users (email, name, hashed_password, role) \
                            VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
