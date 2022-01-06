@@ -11,3 +11,14 @@ CREATE TABLE IF NOT EXISTS password_reset (
     phrase VARCHAR(200) PRIMARY KEY,
     email VARCHAR(200) NOT NULL UNIQUE
 );
+
+CREATE TABLE IF NOT EXISTS enmeshed_users (
+    id INTEGER PRIMARY KEY REFERENCES users,
+    enmeshed_id VARCHAR(200) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_profile (
+    id INTEGER PRIMARY KEY REFERENCES users,
+    firstName VARCHAR(200) NOT NULL,
+    lastName VARCHAR(200) NOT NULL
+);
