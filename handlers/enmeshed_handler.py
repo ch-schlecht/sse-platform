@@ -1,6 +1,6 @@
 from abc import ABCMeta
 
-from db_access import queryone
+from db_access import queryone, execute
 from handlers.base_handler import BaseHandler
 from logger_factory import log_access
 
@@ -41,7 +41,17 @@ class EnmeshedHandler(BaseHandler, metaclass=ABCMeta):
                 except:
                     print("User with id %s exists." % self.current_user)
 
+                try:
+                    result = await queryone("INSERT INTO user_profile (id, firstname, lastname) \
+                                             VALUES (%s, %s, %s) RETURNING id",
+                                             self.current_user, s["Person.Vorname"], s["Person.Nachname"])
+                except:
+                    print("Profile for user already exists")
+                    await execute("UPDATE user_profile SET (firstname, lastname) = ( %s, %s) WHERE id = %s RETURNING id", s["Person.Nachname"], s["Person.Vorname"], self.current_user )
 
-            await self.render("../html/user.html")
+            self.set_status(200)
+            self.write({"status": 200,
+                        "success": True})
+
         else:
             self.redirect("/login")
