@@ -149,3 +149,15 @@ textarea {
     color: #a81313;
     border: 2px solid #a81313 !important;
 }
+
+.card {
+	margin: 28px;
+	height: 100%;
+	max-height: 446px;
+	width: 396px;
+	background: white;
+	border: 1px solid #373737;
+	border-radius: 10px;
+	overflow: hidden;
+	transition: max-height 0.2s;
+}

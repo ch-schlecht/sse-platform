@@ -14,6 +14,8 @@ $(document).ready(function() {
     getRouting();
     getRunningModules();
     getUsersWithRoles();
+
+    getEnmeshedInformation();
 });
 
 /**
@@ -167,4 +169,42 @@ function getRouting(){
       }
     }
   })
+}
+
+function syncProfileInformation() {
+  $.ajax({
+    type: "GET",
+    url: "/sync",
+    success: function(response){
+      console.log(response)
+      console.log("Succesfully synced account data")
+      location.reload();
+    },
+    error: function(xhr, status, error) {
+      if(xhr.status === 400){
+        window.location.href = loginURL;
+      }
+    }
+  })
+}
+
+function getEnmeshedInformation(){
+  $.ajax({
+    type: "GET",
+    url: "/enmeshed",
+    success: function(response){
+      console.log(response);
+      id = response.id
+      user = response.user
+      console.log(id)
+      $('#enmeshed').append(Mustache.render(document.getElementById('enmeshed_profile').innerHTML, {"id":id.enmeshed_id, "user":user}));
+    },
+    error: function(xhr, status, error){
+      if(xhr.status === 400){
+        window.location.href = loginURL;
+      } else if (xhr.status === 404) {
+        $('#enmeshed').append(Mustache.render(document.getElementById('enmeshed_qr').innerHTML));
+      }
+    }
+  });
 }

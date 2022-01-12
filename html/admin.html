@@ -56,6 +56,24 @@
           </div>
         </script>
 
+        <script id="enmeshed_qr" type="text/html">
+          <div>
+            <h1>Vervollstädnige dein Profil über die Enmeshed-App!</h1>
+            <img src="../img/Connector_RLT9OkbrVl9xihMzlvVQ.png">
+            <button id="enmeshed_sync" class="btn" onclick="javascript:syncProfileInformation()">Synchronisiere deine Daten mit der Enmeshed App</button>
+          </div>
+        </script>
+
+        <script id="enmeshed_profile" type="text/html">
+          <div class="card">
+            <p>Enmeshed-ID: {{!id}}</p>
+            <p>Profilinformationen</p>
+            <p>Vorname: {{!user.firstname}}</p>
+            <p>Nachname: {{!user.lastname}}</p>
+            <button id="enmeshed_sync" class="btn" onclick="javascript:syncProfileInformation()">Synchronisiere deine Daten mit der Enmeshed App</button>
+          </div>
+        </script>
+
         <button id="logoutBtn" class="btn logout">Logout</button>
         <button id="change_password" class="btn change_password">Change Password</button>
         <script src="../javascripts/admin.js"></script>

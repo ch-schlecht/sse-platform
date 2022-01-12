@@ -24,7 +24,7 @@ from handlers.running_handler import RunningHandler
 from handlers.template_handler import TemplateHandler
 from handlers.user_management_handlers import AccountDeleteHandler, RoleHandler, UserHandler
 from handlers.util_handlers import RoutingHandler
-from handlers.enmeshed_handler import EnmeshedHandler
+from handlers.enmeshed_handler import EnmeshedSyncHandler, EnmeshedInformationHandler
 from logger_factory import get_logger
 
 logger = get_logger(__name__)
@@ -70,7 +70,8 @@ def make_app(cookie_secret: str) -> tornado.web.Application:
         (r"/template", TemplateHandler),
         (r"/users", UserHandler),
         (r"/websocket", WebsocketHandler),
-        (r"/enmeshed", EnmeshedHandler),
+        (r"/sync", EnmeshedSyncHandler),
+        (r"/enmeshed", EnmeshedInformationHandler),
         (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"}),
         (r"/img/(.*)", tornado.web.StaticFileHandler, {"path": "./img/"}),
         (r"/html/(.*)", tornado.web.StaticFileHandler, {"path": "./html/"}),

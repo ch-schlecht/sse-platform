@@ -6,7 +6,7 @@ from logger_factory import log_access
 
 from enmeshed_utils import *
 
-class EnmeshedHandler(BaseHandler, metaclass=ABCMeta):
+class EnmeshedSyncHandler(BaseHandler, metaclass=ABCMeta):
     """
 
 
@@ -53,5 +53,35 @@ class EnmeshedHandler(BaseHandler, metaclass=ABCMeta):
             self.write({"status": 200,
                         "success": True})
 
+        else:
+            self.redirect("/login")
+
+
+
+class EnmeshedInformationHandler(BaseHandler, metaclass=ABCMeta):
+    """
+
+
+    """
+
+    @log_access
+    async def get(self):
+        if self.current_user:
+            try:
+                enmeshed_id = await queryone("SELECT enmeshed_id from enmeshed_users WHERE id=%s", self.current_user)
+            except:
+                enmeshed_id = None
+
+            if enmeshed_id:
+                enmeshed_information = await queryone("SELECT * from user_profile WHERE id=%s", self.current_user)
+                self.set_status(200)
+                self.write({"status": 200,
+                            "success": True,
+                            "id":enmeshed_id,
+                            "user":enmeshed_information})
+            else:
+                self.set_status(404)
+                self.write({"status": 404,
+                            "success": False})
         else:
             self.redirect("/login")
