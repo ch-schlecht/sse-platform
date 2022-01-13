@@ -17,14 +17,6 @@ class BaseHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
     # use prepare instead of get_current_user because prepare can be async
     def prepare(self):
         """
-        Checks for the presence of the access token.
-        First the "access_token" cookie is checked. If it is not present there,
-        the Authorization Header is checked.
-        If it is present anywhere in those two places and can be associated with a user account, self.current_user
-        will be overridden to the user id, meaning the user is authenticated.
-        If not present or not associated with a user, self.current_user will be
-        set to None, meaning no authentication is granted.
-
         """
         token = self.get_secure_cookie("access_token")
         if token is not None:
