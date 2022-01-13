@@ -1,3 +1,4 @@
+import json
 import os
 import smtplib
 import uuid
@@ -15,22 +16,22 @@ from google.oauth2 import id_token
 
 import CONSTANTS
 from db_access import execute, get_role, insert_google_user_if_not_exists, NoResultError, queryone, user_exists
+import global_vars
 from handlers.base_handler import BaseHandler
 from handlers.module_communication_handlers import WebsocketHandler
 from logger_factory import log_access
 from token_cache import token_cache
 
 
-class LoginHandler(BaseHandler, metaclass=ABCMeta):
+class LoginHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
     """
     Authenticate a user towards the Platform
 
     """
-
     @log_access
     def get(self):
         """
-        render the login page
+        redirect to keycloak
 
         success:
             200, html
@@ -38,8 +39,8 @@ class LoginHandler(BaseHandler, metaclass=ABCMeta):
             n/a
 
         """
-
-        self.render("../html/index.html")
+        url = global_vars.keycloak.auth_url("http://localhost:8888/login/callback")
+        self.redirect(url)
 
     @log_access
     async def post(self):
@@ -59,6 +60,7 @@ class LoginHandler(BaseHandler, metaclass=ABCMeta):
             409 -> user does not exist
 
 
+        """
         """
         try:
             email = self.get_argument("email", "")
@@ -119,6 +121,35 @@ class LoginHandler(BaseHandler, metaclass=ABCMeta):
                         "success": False,
                         "reason": "password_validation_failed",
                         "redirect_suggestions": ["/login", "/register"]})
+        """
+        pass
+
+
+class LoginCallbackHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
+
+    def get(self):
+        # keycloak redirects you back here
+        # with this code
+        code = self.get_argument("code", None)
+        if code is None:
+            print("error, code None")
+
+        #exchange authorization code for token
+        # (redirect_uri has to match the uri in keycloak.auth_url(...) as per openID standard)
+        token = global_vars.keycloak.token(code=code, grant_type=["authorization_code"], redirect_uri="http://localhost:8888/login/callback")
+        print(token)
+
+        # get user info, (not really necessary here though)
+        userinfo = global_vars.keycloak.userinfo(token['access_token'])
+        print(userinfo)
+
+        # dump token dict to str and store it in a secure cookie (BaseHandler will decode it later to validate a user is logged in)
+        if CONSTANTS.DOMAIN == "localhost":
+            self.set_secure_cookie("access_token", json.dumps(token))
+        else:
+            self.set_secure_cookie("access_token", json.dumps(token), domain="." + CONSTANTS.DOMAIN)
+
+        self.redirect("/main")
 
 
 class LogoutHandler(BaseHandler, metaclass=ABCMeta):
@@ -138,16 +169,14 @@ class LogoutHandler(BaseHandler, metaclass=ABCMeta):
             n/a
         """
 
-        token_cache().remove(self._access_token)
-
-        data = {"type": "user_logout",
-                "access_token": self._access_token}
-        tornado.ioloop.IOLoop.current().add_callback(WebsocketHandler.broadcast_message, data)
-
         if CONSTANTS.DOMAIN == "localhost":
             self.clear_cookie("access_token")
         else:
             self.clear_cookie("access_token", domain="." + CONSTANTS.DOMAIN)
+
+        # perform logout in keycloak
+        print(self._access_token)
+        global_vars.keycloak.logout(self._access_token["refresh_token"])
 
         self.set_status(200)
         self.write({"status": 200,
@@ -172,8 +201,10 @@ class RegisterHandler(BaseHandler, metaclass=ABCMeta):
             n/a
 
         """
-
+        """
         self.render("../html/index.html")
+        """
+        pass
 
     @log_access
     async def post(self):
@@ -192,7 +223,7 @@ class RegisterHandler(BaseHandler, metaclass=ABCMeta):
             409 -> user already exists
 
         """
-
+        """
         try:
             email = self.get_argument("email")
             nickname = self.get_argument("nickname")
@@ -248,6 +279,8 @@ class RegisterHandler(BaseHandler, metaclass=ABCMeta):
             self.write({"status": 200,
                         "success": True,
                         "access_token": access_token})
+            """
+        pass
 
 
 class GoogleLoginHandler(BaseHandler, metaclass=ABCMeta):
@@ -272,7 +305,7 @@ class GoogleLoginHandler(BaseHandler, metaclass=ABCMeta):
             401 -> email duplication (email already exists as regular user)
 
         """
-
+        """
         try:
             token = self.get_argument("id_token")
         except tornado.web.MissingArgumentError:
@@ -332,6 +365,8 @@ class GoogleLoginHandler(BaseHandler, metaclass=ABCMeta):
         self.write({"status": 200,
                     "success": True,
                     "access_token": access_token})
+        """
+        pass
 
 
 class PasswordHandler(BaseHandler, metaclass=ABCMeta):

@@ -7,6 +7,7 @@ import argparse
 import json
 import ssl
 
+from keycloak import KeycloakOpenID
 import tornado.ioloop
 import tornado.locks
 import tornado.httpserver
@@ -15,7 +16,7 @@ import tornado.web
 import CONSTANTS
 import global_vars
 from db_access import initialize_db
-from handlers.authentification_handlers import ForgotPasswordHandler, GoogleLoginHandler, LoginHandler, LogoutHandler, \
+from handlers.authentification_handlers import ForgotPasswordHandler, GoogleLoginHandler, LoginHandler, LoginCallbackHandler, LogoutHandler, \
     PasswordHandler, RegisterHandler
 from handlers.base_handler import BaseHandler
 from handlers.main_handler import MainHandler
@@ -28,6 +29,12 @@ from handlers.enmeshed_handler import EnmeshedSyncHandler, EnmeshedInformationHa
 from logger_factory import get_logger
 
 logger = get_logger(__name__)
+
+with open("client_secret.txt", "r") as fp:
+    client_secret = fp.read()
+
+global_vars.keycloak = KeycloakOpenID("https://skm.sc.uni-leipzig.de/auth/", realm_name="kavaq", client_id="test",
+                              client_secret_key=client_secret)
 
 def handle_exception(exc_type, exc_value, exc_traceback):
     """
@@ -60,6 +67,7 @@ def make_app(cookie_secret: str) -> tornado.web.Application:
         (r"/execution/running", RunningHandler),
         (r"/register", RegisterHandler),
         (r"/login", LoginHandler),
+        (r"/login/callback", LoginCallbackHandler),
         (r"/google_signin", GoogleLoginHandler),
         (r"/logout", LogoutHandler),
         (r"/password/\b(change|forgot)\b", PasswordHandler),
