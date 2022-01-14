@@ -139,10 +139,10 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
 
         elif json_message["type"] == "check_permission":
             username = json_message["username"]
-            #result = await queryone("SELECT role FROM users WHERE name = %s", username)
+            result = await queryone("SELECT role FROM users WHERE name = %s", username)
             self.write_message({"type": "check_permission_response",
                                 "username": username,
-                                "role": "user",  # TODO change this back to some real value
+                                "role": result["role"],
                                 "resolve_id": json_message["resolve_id"]})
 
         elif json_message["type"] == "get_running_modules":

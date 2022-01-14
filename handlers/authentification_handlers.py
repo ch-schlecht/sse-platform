@@ -127,7 +127,7 @@ class LoginHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
 
 class LoginCallbackHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
 
-    def get(self):
+    async def get(self):
         # keycloak redirects you back here
         # with this code
         code = self.get_argument("code", None)
@@ -142,6 +142,12 @@ class LoginCallbackHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
         # get user info, (not really necessary here though)
         userinfo = global_vars.keycloak.userinfo(token['access_token'])
         print(userinfo)
+
+        result = await queryone("INSERT INTO users (email, name, role) \
+                                             VALUES (%s, %s, %s) ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name RETURNING id",
+                                userinfo["email"], userinfo["name"], "guest")
+        user_id = result['id']
+        print(user_id)
 
         # dump token dict to str and store it in a secure cookie (BaseHandler will decode it later to validate a user is logged in)
         if CONSTANTS.DOMAIN == "localhost":

@@ -189,18 +189,18 @@ async def user_exists(username: str) -> bool:
     return bool(await query('SELECT * FROM users WHERE name=%s', username))
 
 
-async def is_admin(user_id: int) -> bool:
+async def is_admin(username: str) -> bool:
     """
-    check if the user with the given user_id has the admin role
+    check if the user with the given name has the admin role
 
-    :param user_id: the user to check
+    :param username: the user to check
 
     :return: True if the user is an admin, False otherwise
 
     """
 
     try:
-        result = await get_role(user_id)
+        result = await get_role(username)
         if result == "admin":
             return True
         else:
@@ -210,7 +210,7 @@ async def is_admin(user_id: int) -> bool:
         return False
 
 
-async def get_role(user_id: int) -> Optional[str]:
+async def get_role(username: str) -> Optional[str]:
     """
     Query the given users role
 
@@ -221,7 +221,7 @@ async def get_role(user_id: int) -> Optional[str]:
     """
 
     try:
-        result = await queryone("SELECT role FROM users WHERE id = %s", user_id)
+        result = await queryone("SELECT role FROM users WHERE name = %s", username)
         return result["role"]
     except Exception as e:
         print(e)
