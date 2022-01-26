@@ -24,7 +24,7 @@ class MainHandler(BaseHandler, metaclass=ABCMeta):
         """
 
         if self.current_user:
-            if await is_admin(self.current_user["name"]):
+            if await is_admin(self.current_user):
                 await self.render("../html/admin.html")
             else:
                 await self.render("../html/user.html")

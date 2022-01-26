@@ -131,7 +131,7 @@ class RoleHandler(BaseHandler, metaclass=ABCMeta):
         """
 
         if self.current_user:
-            if await is_admin(self.current_user["name"]):
+            if await is_admin(self.current_user):
                 user_name = self.get_argument("user_name")
                 role = self.get_argument("role")
                 await execute("UPDATE users SET role = %s WHERE name = %s", role, user_name)
@@ -173,7 +173,7 @@ class UserHandler(BaseHandler, metaclass=ABCMeta):
         """
 
         if self.current_user:
-            if await is_admin(self.current_user["name"]):
+            if await is_admin(self.current_user):
                 user_list = [user for user in await query("SELECT id, name, email, role FROM users")]
                 self.set_status(200)
                 self.write({"status": 200,

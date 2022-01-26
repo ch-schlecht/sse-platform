@@ -4,6 +4,7 @@ import json
 from keycloak import KeycloakGetError
 import tornado.web
 
+from db_access import queryone
 import global_vars
 from token_cache import token_cache
 
@@ -15,7 +16,7 @@ class BaseHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
 
     """
     # use prepare instead of get_current_user because prepare can be async
-    def prepare(self):
+    async def prepare(self):
         """
         """
         token = self.get_secure_cookie("access_token")
@@ -31,7 +32,10 @@ class BaseHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
             userinfo = global_vars.keycloak.userinfo(token['access_token'])
             # if token is still valid --> successfull authentication --> we set the current_user
             if userinfo:
-                self.current_user = userinfo
+                result = await queryone("SELECT id FROM users WHERE email = %s", userinfo["email"])
+                self.current_user = result["id"]
+                print(self.current_user)
+                self.userinfo = userinfo
                 self._access_token = token
         except KeycloakGetError as e:
             # something wrong with request
