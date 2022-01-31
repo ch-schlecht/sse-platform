@@ -11,7 +11,7 @@ import tornado.websocket
 
 import CONSTANTS
 import global_vars
-from db_access import query, queryone
+from db_access import query, queryone, NoResultError
 from token_cache import token_cache
 
 
@@ -195,6 +195,41 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
                 self.write_message({"type": "get_template_response",
                                     "success": True,
                                     "resolve_id": json_message["resolve_id"]})
+
+        elif json_message["type"] == "get_enmeshed_information":
+            try:
+                enmeshed_id = await queryone("SELECT enmeshed_id FROM enmeshed_users e, users u WHERE e.id = u.id AND u.email = %s", json_message["email"])
+            except NoResultError:
+                enmeshed_id = None
+                # no enmeshed account linked, answer with error
+                self.write_message({"type": "get_enmeshed_information_response",
+                                    "success": False,
+                                    "reason": "no_enmeshed_id",
+                                    "resolve_id": json_message["resolve_id"]})
+                return
+
+            if enmeshed_id:
+                try:
+                    enmeshed_information = await queryone("SELECT up.id, up.firstName, up.lastName from user_profile up, users u WHERE up.id = u.id AND u.email=%s", json_message["email"])
+                    self.write_message({"type": "get_enmeshed_information_response",
+                                        "success": True,
+                                        "enmeshed_id": enmeshed_id,
+                                        "enmeshed_information": enmeshed_information,
+                                        "resolve_id": json_message["resolve_id"]})
+                except NoResultError:
+                    # no enmeshed account linked, answer with error
+                    self.write_message({"type": "get_enmeshed_information_response",
+                                        "success": False,
+                                        "reason": "no_enmeshed_profile",
+                                        "resolve_id": json_message["resolve_id"]})
+                    return
+            else:
+                # db is offline
+                self.write_message({"type": "get_enmeshed_information_response",
+                                    "success": False,
+                                    "reason": "db_error",
+                                    "resolve_id": json_message["resolve_id"]})
+                return
 
 
     def on_close(self):
