@@ -11,8 +11,6 @@ import tornado.websocket
 
 import CONSTANTS
 import global_vars
-from db_access import query, queryone
-from token_cache import token_cache
 
 
 class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
@@ -86,7 +84,6 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
 
         elif json_message["type"] == "user_logout":
             token = json_message["access_token"]
-            token_cache().remove(token)
             self.broadcast_message(json_message)  # broadcast logout to all other modules
             self.write_message({"type":"user_logout_response",
                                 "success": True,
@@ -94,55 +91,32 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
 
         elif json_message['type'] == "get_user":
             username = json_message['username']
-            user = await queryone("SELECT id, email, name AS username, role FROM users WHERE name = %s", username)
+            user_id = global_vars.keycloak_admin.get_user_id(username)
+            info = global_vars.keycloak_admin.get_user(user_id)
+            group_of_user = global_vars.keycloak_admin.get_user_groups(user_id)[0]  # this is a list, use first element since we only use disjunct roles
+            user_payload = {"id": info["id"], "email": info["email"], "username": username, "role": group_of_user["name"]}
             self.write_message({"type": "get_user_response",
-                                "user": user,
+                                "user": user_payload,
                                 "resolve_id": json_message['resolve_id']})
 
         elif json_message['type'] == "get_user_list":
-            users = await query("SELECT id, email, name AS username, role FROM users")
-            ret_format = {}
-            for user in users:
-                ret_format[user["username"]] = user
+            user_dict = {}
+            keycloak_groups_list = global_vars.keycloak_admin.get_groups()
+            for group in keycloak_groups_list:
+                keycloak_members_list = global_vars.keycloak_admin.get_group_members(group["id"])
+                for member in keycloak_members_list:
+                    user_dict[member["username"]] = {"id": member["id"], "username": member["username"], "email": member["email"], "role": group["name"]}
             self.write_message({"type": "get_user_list_response",
-                                "users": ret_format,
+                                "users": user_dict,
                                 "resolve_id": json_message['resolve_id']})
-
-        elif json_message["type"] == "token_validation":
-            validated_user = token_cache().get(json_message["access_token"])
-            if validated_user is not None:
-                self.write_message({"type": "token_validation_response",
-                                    "success": True,
-                                    "user": {
-                                        "username": validated_user["username"],
-                                        "email": validated_user["email"],
-                                        "user_id": validated_user["user_id"],
-                                        "role": validated_user["role"],
-                                        "expires": str(validated_user["expires"])
-                                    },
-                                    "resolve_id": json_message["resolve_id"]})
-            else:
-                self.write_message({"type": "token_validation_response",
-                                    "success": False,
-                                    "resolve_id": json_message["resolve_id"]})
-
-        elif json_message["type"] == "update_token_ttl":
-            renewed_user = token_cache().get(json_message["access_token"])
-            if renewed_user is not None:
-                self.write_message({"type": "update_token_ttl_response",
-                            "success": True,
-                            "resolve_id": json_message["resolve_id"]})
-            else:
-                self.write_message({"type": "update_token_ttl_response",
-                            "success": False,
-                            "resolve_id": json_message["resolve_id"]})
 
         elif json_message["type"] == "check_permission":
             username = json_message["username"]
-            result = await queryone("SELECT role FROM users WHERE name = %s", username)
+            user_id = global_vars.keycloak_admin.get_user_id(username)
+            group_of_user = global_vars.keycloak_admin.get_user_groups(user_id)[0]  # this is a list, use first element since we only use disjunct roles
             self.write_message({"type": "check_permission_response",
                                 "username": username,
-                                "role": result["role"],
+                                "role": group_of_user,
                                 "resolve_id": json_message["resolve_id"]})
 
         elif json_message["type"] == "get_running_modules":
@@ -195,7 +169,6 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
                 self.write_message({"type": "get_template_response",
                                     "success": True,
                                     "resolve_id": json_message["resolve_id"]})
-
 
     def on_close(self):
         """

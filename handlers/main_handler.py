@@ -1,6 +1,5 @@
 from abc import ABCMeta
 
-from db_access import is_admin
 from handlers.base_handler import BaseHandler
 from logger_factory import log_access
 
@@ -24,7 +23,7 @@ class MainHandler(BaseHandler, metaclass=ABCMeta):
         """
 
         if self.current_user:
-            if await is_admin(self.current_user):
+            if self.is_current_user_admin():
                 await self.render("../html/admin.html")
             else:
                 await self.render("../html/user.html")

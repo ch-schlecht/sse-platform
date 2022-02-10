@@ -19,10 +19,10 @@ def get_logger(name: str) -> logging.Logger:
     """
 
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     f_handler = logging.FileHandler("log.log")
     c_handler = logging.StreamHandler(sys.stdout)
-    f_handler.setLevel(logging.DEBUG - 1)
+    f_handler.setLevel(logging.INFO - 1)
     c_handler.setLevel(logging.INFO - 1)
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     f_handler.setFormatter(formatter)
