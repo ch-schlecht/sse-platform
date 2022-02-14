@@ -29,7 +29,6 @@ from logger_factory import get_logger
 logger = get_logger(__name__)
 
 define("config", default="config.json", type=str, help="path to config file, defaults to config.json")
-define("client_secret", default="client_secret.txt", type=str, help="path to client secret file, defaults to client_secret.txt")
 
 
 def handle_exception(exc_type, exc_value, exc_traceback):
@@ -96,24 +95,6 @@ async def main() -> None:
                                           client_secret_key=config["keycloak_client_secret"])
     global_vars.keycloak_admin = KeycloakAdmin(CONSTANTS.KEYCLOAK_BASE_URL, realm_name=CONSTANTS.KEYCLOAK_REALM, username=config["keycloak_admin_username"],
                                                password=config["keycloak_admin_password"], verify=True)
-    pprint(global_vars.keycloak_admin.get_users())
-    print("-----------------------------------------------------------------")
-    client_id = global_vars.keycloak_admin.get_client_id("test")
-    pprint(client_id)
-    print("-----------------------------------------------------------------")
-    pprint(global_vars.keycloak_admin.get_client_roles(client_id))
-    print("-----------------------------------------------------------------")
-    pprint(global_vars.keycloak_admin.get_client_roles_of_user(user_id="2f1c4c05-f83f-4597-b61d-9731eb4eab75", client_id=client_id))
-    print("-----------------------------------------------------------------")
-    pprint(global_vars.keycloak_admin.get_groups())
-    print("-----------------------------------------------------------------")
-    pprint(global_vars.keycloak_admin.get_group_members("a4ab2cc7-5b19-487f-a70c-d4da5372fcfc"))
-    print("-----------------------------------------------------------------")
-    user_id = global_vars.keycloak_admin.get_user_id("soserve_admin")
-    info = global_vars.keycloak_admin.get_user(user_id)
-    groups_of_user = global_vars.keycloak_admin.get_user_groups(user_id)[0]
-    pprint(info)
-    pprint(groups_of_user)
 
     if options.config != CONSTANTS.CONFIG_PATH:
         CONSTANTS.CONFIG_PATH = options.config
