@@ -1,15 +1,9 @@
 from abc import ABCMeta
 
-import bcrypt
-import tornado.escape
-import tornado.ioloop
-import tornado.web
-
-from db_access import execute, is_admin, query, queryone
+import CONSTANTS
+import global_vars
 from handlers.base_handler import BaseHandler
-from handlers.module_communication_handlers import WebsocketHandler
 from logger_factory import log_access
-from token_cache import token_cache
 
 
 class AccountDeleteHandler(BaseHandler, metaclass=ABCMeta):
@@ -34,47 +28,13 @@ class AccountDeleteHandler(BaseHandler, metaclass=ABCMeta):
             401 -> no token
 
         """
-
         if self.current_user:
-            try:
-                password = self.get_argument("password")
-            except tornado.web.MissingArgumentError:  # password has not been sent in the request
-                self.set_status(400)
-                self.write({"status": 400,
-                            "reason": "missing_query_parameter",
-                            "redirect_suggestions": ["/login", "/register"]})
-                self.flush()
-                self.finish()
-                return
-            user = await queryone("SELECT * FROM users WHERE id = %s", self.current_user)
-
-            # check password validation
-            password_validated = await tornado.ioloop.IOLoop.current().run_in_executor(
-                None,
-                bcrypt.checkpw,
-                tornado.escape.utf8(password),
-                tornado.escape.utf8(user['hashed_password'])
-            )
-
-            if password_validated:
-                await execute("DELETE FROM users WHERE id = %s", self.current_user)  # delete user data
-
-                # invalidate token and cache entry --> force logout
-                token_cache().remove(self._access_token)
-                self.clear_cookie("access_token")
-
-                # message all modules that this account was deleted, it is their responsibility to treat it accordingly
-                data = {"type": "user_delete",
-                        "userid": self.current_user,
-                        "access_token": self._access_token}
-                tornado.ioloop.IOLoop.current().add_callback(WebsocketHandler.broadcast_message, data)
-
-                self.set_status(204)
-            else:
-                self.set_status(401)
-                self.write({"status": 401,
-                            "success": False,
-                            "reason": "password_validation_failed"})
+            # since we don't know a password hash of him, we cannot check if it is really him, so we can't delete his account from here
+            # therefore just tell the user to message an admin
+            self.set_status(200)
+            self.write({"status": 200,
+                        "success": True,
+                        "message": "contact_keycloak_admin"})
         else:
             self.set_status(401)
             self.write({"status": 401,
@@ -89,10 +49,10 @@ class RoleHandler(BaseHandler, metaclass=ABCMeta):
     """
 
     @log_access
-    async def get(self):
+    def get(self):
         """
         GET request of /roles
-            request the role of the currently logged in user
+            request the role of the currently logged-in user
 
         success:
             200, {"type": "permission_response", "role": <str>}
@@ -102,10 +62,13 @@ class RoleHandler(BaseHandler, metaclass=ABCMeta):
         """
 
         if self.current_user:
-            result = await queryone("SELECT role FROM users WHERE id=%s", self.current_user)
+            result = self.current_userinfo["resource_access"][CONSTANTS.KEYCLOAK_CLIENT_ID]["roles"]
+            # is a list, but we only set one role to each user, so just take the first one
+            if len(result) == 1:
+                result = result[0]
             self.set_status(200)
             self.write({"type": "permission_response",
-                        "role": result["role"]})
+                        "role": result})
         else:
             self.set_status(401)
             self.write({"status": 401,
@@ -116,8 +79,7 @@ class RoleHandler(BaseHandler, metaclass=ABCMeta):
     async def post(self):
         """
         POST request of /roles
-            change the role of a certain user with help of the query parameters. only an account with the "admin" role
-            is able to perform this action.
+            TODO unsure if it should be possible to set the user roles of keycloak from here, therefore currently unavailable
 
             query param: user_name
             query param: role
@@ -125,30 +87,14 @@ class RoleHandler(BaseHandler, metaclass=ABCMeta):
         success:
             200
         error:
-            401 -> no token
-            401 -> user not admin
+            410 -> moved to keycloak
 
         """
 
-        if self.current_user:
-            if await is_admin(self.current_user):
-                user_name = self.get_argument("user_name")
-                role = self.get_argument("role")
-                await execute("UPDATE users SET role = %s WHERE name = %s", role, user_name)
-
-                self.set_status(200)
-                self.write({"status": 200,
-                            "success": True})
-            else:
-                self.set_status(401)
-                self.write({"status": 401,
-                            "reason": "user_not_admin",
-                            "redirect_suggestions": ["/login"]})
-        else:
-            self.set_status(401)
-            self.write({"status": 401,
-                        "reason": "no_token",
-                        "redirect_suggestions": ["/login"]})
+        self.set_status(410)
+        self.write({"status": 410,
+                    "reason": "moved_to_keycloak"})
+        # TODO should we be able to update the roles in keycloak from here? technically its possible
 
 
 class UserHandler(BaseHandler, metaclass=ABCMeta):
@@ -173,8 +119,13 @@ class UserHandler(BaseHandler, metaclass=ABCMeta):
         """
 
         if self.current_user:
-            if await is_admin(self.current_user):
-                user_list = [user for user in await query("SELECT id, name, email, role FROM users")]
+            if self.is_current_user_admin():
+                user_list = []
+                keycloak_groups_list = global_vars.keycloak_admin.get_groups()
+                for group in keycloak_groups_list:
+                    keycloak_members_list = global_vars.keycloak_admin.get_group_members(group["id"])
+                    for member in keycloak_members_list:
+                        user_list.append({"id": member["id"], "name": member["username"], "email": member["email"], "role": group["name"]})
                 self.set_status(200)
                 self.write({"status": 200,
                             "success": True,

@@ -8,6 +8,7 @@ verify_key.key
 /modules
 /modules/*
 config.json
+verify_keys.json
 
 
 # Byte-compiled / optimized / DLL files
