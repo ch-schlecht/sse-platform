@@ -90,6 +90,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
                                 "resolve_id": json_message["resolve_id"]})
 
         elif json_message['type'] == "get_user":
+            global_vars.keycloak_admin.refresh_token()
             username = json_message['username']
             user_id = global_vars.keycloak_admin.get_user_id(username)
             info = global_vars.keycloak_admin.get_user(user_id)
@@ -100,6 +101,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
                                 "resolve_id": json_message['resolve_id']})
 
         elif json_message['type'] == "get_user_list":
+            global_vars.keycloak_admin.refresh_token()
             user_dict = {}
             keycloak_groups_list = global_vars.keycloak_admin.get_groups()
             for group in keycloak_groups_list:
@@ -111,6 +113,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
                                 "resolve_id": json_message['resolve_id']})
 
         elif json_message["type"] == "check_permission":
+            global_vars.keycloak_admin.refresh_token()
             username = json_message["username"]
             user_id = global_vars.keycloak_admin.get_user_id(username)
             group_of_user = global_vars.keycloak_admin.get_user_groups(user_id)[0]  # this is a list, use first element since we only use disjunct roles

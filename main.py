@@ -94,7 +94,7 @@ async def main() -> None:
     global_vars.keycloak = KeycloakOpenID(CONSTANTS.KEYCLOAK_BASE_URL, realm_name=CONSTANTS.KEYCLOAK_REALM, client_id=CONSTANTS.KEYCLOAK_CLIENT_ID,
                                           client_secret_key=config["keycloak_client_secret"])
     global_vars.keycloak_admin = KeycloakAdmin(CONSTANTS.KEYCLOAK_BASE_URL, realm_name=CONSTANTS.KEYCLOAK_REALM, username=config["keycloak_admin_username"],
-                                               password=config["keycloak_admin_password"], verify=True)
+                                               password=config["keycloak_admin_password"], verify=True, auto_refresh_token=['get', 'put', 'post', 'delete'])
 
     if options.config != CONSTANTS.CONFIG_PATH:
         CONSTANTS.CONFIG_PATH = options.config

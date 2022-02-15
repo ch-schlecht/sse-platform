@@ -2,6 +2,7 @@ from abc import ABCMeta
 import json
 
 from keycloak import KeycloakGetError
+from keycloak.exceptions import KeycloakAuthenticationError
 import tornado.web
 
 import CONSTANTS
@@ -39,6 +40,7 @@ class BaseHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
                 self.current_userinfo = userinfo
                 self._access_token = token
         except KeycloakGetError as e:
+            print(e)
             # something wrong with request
             # decode error message
             decoded = json.loads(e.response_body.decode())
@@ -49,6 +51,12 @@ class BaseHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
                 self.current_userinfo = None
                 self._access_token = None
                 self.redirect("/login")
+        except KeycloakAuthenticationError as e:
+            print(e)
+            self.current_user = None
+            self.current_userinfo = None
+            self._access_token = None
+            self.redirect("/login")
 
     def is_current_user_admin(self):
         if not self.current_userinfo:
