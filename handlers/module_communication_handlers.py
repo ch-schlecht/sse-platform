@@ -116,7 +116,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
             global_vars.keycloak_admin.refresh_token()
             username = json_message["username"]
             user_id = global_vars.keycloak_admin.get_user_id(username)
-            group_of_user = global_vars.keycloak_admin.get_user_groups(user_id)[0]  # this is a list, use first element since we only use disjunct roles
+            group_of_user = global_vars.keycloak_admin.get_user_groups(user_id)[0]["name"]  # this is a list, use first element since we only use disjunct groups
             self.write_message({"type": "check_permission_response",
                                 "username": username,
                                 "role": group_of_user,
