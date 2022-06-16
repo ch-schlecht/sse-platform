@@ -9,7 +9,6 @@ import nacl.signing
 import tornado.escape
 import tornado.websocket
 
-import CONSTANTS
 import global_vars
 
 
@@ -83,7 +82,6 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
                                 "resolve_id": json_message["resolve_id"]})
 
         elif json_message["type"] == "user_logout":
-            token = json_message["access_token"]
             self.broadcast_message(json_message)  # broadcast logout to all other modules
             self.write_message({"type":"user_logout_response",
                                 "success": True,
@@ -151,9 +149,9 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
 
         elif json_message["type"] == "get_template":
             template_name = json_message["template_name"]
-            if os.path.isdir(CONSTANTS.TEMPLATES_DIR):
-                if os.path.isfile(CONSTANTS.TEMPLATES_DIR + "/" + template_name):
-                    with open(CONSTANTS.TEMPLATES_DIR + "/" + template_name, "r") as fp:
+            if os.path.isdir(global_vars.templates_dir):
+                if os.path.isfile(global_vars.templates_dir + "/" + template_name):
+                    with open(global_vars.templates_dir + "/" + template_name, "r") as fp:
                         template_str = fp.read()
 
                         self.write_message({"type": "get_template_response",
@@ -163,10 +161,10 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
         elif json_message["type"] == "post_template":
             template_name = json_message["template_name"]
 
-            if not os.path.isdir(CONSTANTS.TEMPLATES_DIR):
-                os.mkdir(CONSTANTS.TEMPLATES_DIR)
+            if not os.path.isdir(global_vars.templates_dir):
+                os.mkdir(global_vars.templates_dir)
 
-            with open(CONSTANTS.TEMPLATES_DIR + "/" + template_name, "w") as fp:
+            with open(global_vars.templates_dir + "/" + template_name, "w") as fp:
                 fp.write(json_message["template"])
 
                 self.write_message({"type": "get_template_response",

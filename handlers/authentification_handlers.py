@@ -3,7 +3,6 @@ import json
 
 import tornado.web
 
-import CONSTANTS
 import global_vars
 from handlers.base_handler import BaseHandler
 from logger_factory import log_access
@@ -24,7 +23,7 @@ class LoginHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
             n/a
         """
 
-        url = global_vars.keycloak.auth_url("http://localhost:8888/login/callback")  # todo make host and port generic
+        url = global_vars.keycloak.auth_url(global_vars.keycloak_callback_url)
         self.redirect(url)
 
 
@@ -39,7 +38,8 @@ class LoginCallbackHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
 
         #exchange authorization code for token
         # (redirect_uri has to match the uri in keycloak.auth_url(...) as per openID standard)
-        token = global_vars.keycloak.token(code=code, grant_type=["authorization_code"], redirect_uri="http://localhost:8888/login/callback")  # todo make host and port generic
+        token = global_vars.keycloak.token(code=code, grant_type=[
+                                           "authorization_code"], redirect_uri=global_vars.keycloak_callback_url)
         print(token)
 
         # get user info, (not really necessary here though)
@@ -47,10 +47,10 @@ class LoginCallbackHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
         print(userinfo)
 
         # dump token dict to str and store it in a secure cookie (BaseHandler will decode it later to validate a user is logged in)
-        if CONSTANTS.DOMAIN == "localhost":
+        if global_vars.domain == "localhost":
             self.set_secure_cookie("access_token", json.dumps(token))
         else:
-            self.set_secure_cookie("access_token", json.dumps(token), domain="." + CONSTANTS.DOMAIN)
+            self.set_secure_cookie("access_token", json.dumps(token), domain="." + global_vars.domain)
 
         self.redirect("/main")
 
@@ -71,10 +71,10 @@ class LogoutHandler(BaseHandler, metaclass=ABCMeta):
             n/a
         """
 
-        if CONSTANTS.DOMAIN == "localhost":
+        if global_vars.domain == "localhost":
             self.clear_cookie("access_token")
         else:
-            self.clear_cookie("access_token", domain="." + CONSTANTS.DOMAIN)
+            self.clear_cookie("access_token", domain="." + global_vars.domain)
 
         # perform logout in keycloak
         print(self._access_token)

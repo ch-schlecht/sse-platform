@@ -5,7 +5,6 @@ from keycloak import KeycloakGetError
 from keycloak.exceptions import KeycloakAuthenticationError
 import tornado.web
 
-import CONSTANTS
 import global_vars
 
 
@@ -61,7 +60,7 @@ class BaseHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
     def is_current_user_admin(self):
         if not self.current_userinfo:
             return False
-        if "admin" in self.current_userinfo["resource_access"][CONSTANTS.KEYCLOAK_CLIENT_ID]["roles"]:
+        if "admin" in self.current_userinfo["resource_access"][global_vars.keycloak_client_id]["roles"]:
             return True
         else:
             return False

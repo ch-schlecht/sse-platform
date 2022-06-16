@@ -1,8 +1,15 @@
 {
+    "port": 0,
+    "keycloak_base_url": "https://<host>/auth/",
+    "keycloak_realm": "<keycloak_realm>",
+    "keycloak_client_id": "<client_id>",
+    "keycloak_callback_url": "http://<platform_host>:<platform_port>/login/callback",
     "keycloak_admin_username": "<username>",
     "keycloak_admin_password": "<password>",
     "keycloak_client_secret": "<client_secret>",
     "cookie_secret": "<cookie_secret>",
+    "domain": "<domain>",
+    "templates_directory": "module_templates",
     "routing": {
         "module1": "http://sub.domain.tld:port",
         "module2": "http://sub.domain.tld:port"

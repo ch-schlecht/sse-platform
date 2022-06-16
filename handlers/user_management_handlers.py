@@ -1,6 +1,5 @@
 from abc import ABCMeta
 
-import CONSTANTS
 import global_vars
 from handlers.base_handler import BaseHandler
 from logger_factory import log_access
@@ -62,7 +61,7 @@ class RoleHandler(BaseHandler, metaclass=ABCMeta):
         """
 
         if self.current_user:
-            result = self.current_userinfo["resource_access"][CONSTANTS.KEYCLOAK_CLIENT_ID]["roles"]
+            result = self.current_userinfo["resource_access"][global_vars.keycloak_client_id]["roles"]
             # is a list, but we only set one role to each user, so just take the first one
             if len(result) == 1:
                 result = result[0]

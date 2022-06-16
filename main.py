@@ -14,21 +14,20 @@ import tornado.httpserver
 from tornado.options import define, options
 import tornado.web
 
-import CONSTANTS
 import global_vars
 from handlers.authentification_handlers import LoginHandler, LoginCallbackHandler, LogoutHandler
 from handlers.base_handler import BaseHandler
 from handlers.main_handler import MainHandler
 from handlers.module_communication_handlers import WebsocketHandler
 from handlers.running_handler import RunningHandler
-from handlers.template_handler import TemplateHandler
 from handlers.user_management_handlers import AccountDeleteHandler, RoleHandler, UserHandler
 from handlers.util_handlers import RoutingHandler
 from logger_factory import get_logger
 
 logger = get_logger(__name__)
 
-define("config", default="config.json", type=str, help="path to config file, defaults to config.json")
+define("config", default="config.json", type=str,
+       help="path to config file, defaults to config.json")
 
 
 def handle_exception(exc_type, exc_value, exc_traceback):
@@ -36,14 +35,17 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     any unhandled exceptions get passed to our logger, so that we also have complete stacktraces of exceptions in the logfile
     """
 
-    if issubclass(exc_type, KeyboardInterrupt):  # ignore KeyboardInterrupt exception, they always appear when stopping the script with CTRL + C
+    # ignore KeyboardInterrupt exception, they always appear when stopping the script with CTRL + C
+    if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
 
-    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+    logger.error("Uncaught exception", exc_info=(
+        exc_type, exc_value, exc_traceback))
 
 
-sys.excepthook = handle_exception  # register our exception handler to the exception hook
+# register our exception handler to the exception hook
+sys.excepthook = handle_exception
 
 
 def make_app(cookie_secret: str) -> tornado.web.Application:
@@ -66,13 +68,13 @@ def make_app(cookie_secret: str) -> tornado.web.Application:
         (r"/delete_account", AccountDeleteHandler),
         (r"/roles", RoleHandler),
         (r"/routing", RoutingHandler),
-        (r"/template", TemplateHandler),
         (r"/users", UserHandler),
         (r"/websocket", WebsocketHandler),
         (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"}),
         (r"/img/(.*)", tornado.web.StaticFileHandler, {"path": "./img/"}),
         (r"/html/(.*)", tornado.web.StaticFileHandler, {"path": "./html/"}),
-        (r"/javascripts/(.*)", tornado.web.StaticFileHandler, {"path": "./javascripts/"})
+        (r"/javascripts/(.*)", tornado.web.StaticFileHandler,
+         {"path": "./javascripts/"})
     ], cookie_secret=cookie_secret)
 
 
@@ -91,23 +93,26 @@ async def main() -> None:
     with open(options.config) as json_file:
         config = json.load(json_file)
 
-    global_vars.keycloak = KeycloakOpenID(CONSTANTS.KEYCLOAK_BASE_URL, realm_name=CONSTANTS.KEYCLOAK_REALM, client_id=CONSTANTS.KEYCLOAK_CLIENT_ID,
+    global_vars.port = int(config["port"])
+    global_vars.keycloak = KeycloakOpenID(config["keycloak_base_url"], realm_name=config["keycloak_realm"], client_id=config["keycloak_client_id"],
                                           client_secret_key=config["keycloak_client_secret"])
-    global_vars.keycloak_admin = KeycloakAdmin(CONSTANTS.KEYCLOAK_BASE_URL, realm_name=CONSTANTS.KEYCLOAK_REALM, username=config["keycloak_admin_username"],
+    global_vars.keycloak_admin = KeycloakAdmin(config["keycloak_base_url"], realm_name=config["keycloak_realm"], username=config["keycloak_admin_username"],
                                                password=config["keycloak_admin_password"], verify=True, auto_refresh_token=['get', 'put', 'post', 'delete'])
-
-    if options.config != CONSTANTS.CONFIG_PATH:
-        CONSTANTS.CONFIG_PATH = options.config
+    global_vars.keycloak_callback_url = config["keycloak_callback_url"]
+    global_vars.config_path = options.config
+    global_vars.domain = config["domain"]
+    global_vars.keycloak_client_id = config["keycloak_client_id"]
+    global_vars.templates_dir = config["templates_directory"]
 
     if "routing" in config:
         global_vars.routing = config["routing"]
 
     app = make_app(config["cookie_secret"])
     server = tornado.httpserver.HTTPServer(app)
-    global_vars.servers['platform'] = {"port": CONSTANTS.PORT}
-    server.listen(CONSTANTS.PORT)
+    global_vars.servers['platform'] = {"port": global_vars.port}
+    server.listen(global_vars.port)
 
-    logger.info("Platform started on port: " + str(CONSTANTS.PORT))
+    logger.info("Platform started on port: " + str(global_vars.port))
 
     shutdown_event = tornado.locks.Event()
     await shutdown_event.wait()
