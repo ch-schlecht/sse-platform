@@ -21,7 +21,7 @@ from handlers.main_handler import MainHandler
 from handlers.module_communication_handlers import WebsocketHandler
 from handlers.running_handler import RunningHandler
 from handlers.user_management_handlers import AccountDeleteHandler, RoleHandler, UserHandler
-from handlers.util_handlers import RoutingHandler
+from handlers.util_handlers import HealthCheckHandler, RoutingHandler
 from logger_factory import get_logger
 
 logger = get_logger(__name__)
@@ -69,6 +69,7 @@ def make_app(cookie_secret: str) -> tornado.web.Application:
         (r"/roles", RoleHandler),
         (r"/routing", RoutingHandler),
         (r"/users", UserHandler),
+        (r"/health", HealthCheckHandler),
         (r"/websocket", WebsocketHandler),
         (r"/css/(.*)", tornado.web.StaticFileHandler, {"path": "./css/"}),
         (r"/img/(.*)", tornado.web.StaticFileHandler, {"path": "./img/"}),

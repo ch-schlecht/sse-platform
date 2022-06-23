@@ -1,5 +1,7 @@
 from abc import ABCMeta
 
+import tornado.web
+
 import global_vars
 from handlers.base_handler import BaseHandler
 from logger_factory import log_access
@@ -32,3 +34,18 @@ class RoutingHandler(BaseHandler, metaclass=ABCMeta):
             self.write({"status": 401,
                         "reason": "no_token",
                         "redirect_suggestions": ["/login"]})
+
+
+class HealthCheckHandler(tornado.web.RequestHandler):
+    """
+    can be used as a health check to determine if the platform is running
+    """
+
+    def get(self):
+        """
+        GET /health
+        """
+
+        self.set_status(200)
+        self.write({"status": 200,
+                    "success": True})
