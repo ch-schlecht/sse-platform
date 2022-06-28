@@ -28,6 +28,8 @@ logger = get_logger(__name__)
 
 define("config", default="config.json", type=str,
        help="path to config file, defaults to config.json")
+define("test", default=False, type=bool,
+       help="start application in test mode (bypass authentication)")
 
 
 def handle_exception(exc_type, exc_value, exc_traceback):
