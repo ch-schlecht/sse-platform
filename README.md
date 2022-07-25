@@ -28,6 +28,20 @@ $ python3 main.py [--config path/to/config.json]
 Optional arguments:
 - --config to specify the path to the config file. It defaults to ./config.json
 
+## Tests
+
+Tests are done using Tornados testing submodule which relies on the standard unittest module itself.
+Therefore no extra dependencies need to be installed.
+
+Run the tests using the following command:
+
+```sh
+$ python3 -m tornado.testing api_test.py
+```
+
+There are plenty more available arguments in the [docs](https://www.tornadoweb.org/en/stable/testing.html#tornado.testing.main).
+
+
 ## Contributing a module
 
 In order to build a module there are certain rules and steps to take to ensure your module is working properly. (As this platform is in alpha state, please note that this information is subject to change):
