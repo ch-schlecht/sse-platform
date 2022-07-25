@@ -45,6 +45,7 @@ class BaseHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
             token = json.loads(token)
         else:
             self.redirect("/login")
+            return
 
         try:
             # try to refresh the token and fetch user info. this will fail if there is no valid session
