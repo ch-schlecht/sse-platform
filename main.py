@@ -106,11 +106,12 @@ async def main() -> None:
     global_vars.domain = config["domain"]
     global_vars.keycloak_client_id = config["keycloak_client_id"]
     global_vars.templates_dir = config["templates_directory"]
+    global_vars.cookie_secret = config["cookie_secret"]
 
     if "routing" in config:
         global_vars.routing = config["routing"]
 
-    app = make_app(config["cookie_secret"])
+    app = make_app(global_vars.cookie_secret)
     server = tornado.httpserver.HTTPServer(app)
     global_vars.servers['platform'] = {"port": global_vars.port}
     server.listen(global_vars.port)

@@ -11,3 +11,4 @@ keycloak = KeycloakOpenID  # only as dummies for IDE function suggestions (corre
 keycloak_admin = KeycloakAdmin
 keycloak_client_id: str = ""
 keycloak_callback_url: str = ""  # url that is send to keycloak as a callback
+cookie_secret: str = "" # tornado cookie secret
