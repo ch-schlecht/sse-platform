@@ -1,37 +1,43 @@
 import json
 
 from keycloak import KeycloakAdmin, KeycloakOpenID
+from tornado import gen
 from tornado.options import options
-from tornado.testing import AsyncHTTPTestCase
+from tornado.testing import AsyncHTTPTestCase, gen_test
+import tornado.websocket
 
 import global_vars
 from main import make_app 
 
+
+def setup():
+    # deal with config properties
+    with open(options.config) as json_file:
+        config = json.load(json_file)
+
+    global_vars.keycloak = KeycloakOpenID(config["keycloak_base_url"], realm_name=config["keycloak_realm"], client_id=config["keycloak_client_id"],
+                                        client_secret_key=config["keycloak_client_secret"])
+    global_vars.keycloak_admin = KeycloakAdmin(config["keycloak_base_url"], realm_name=config["keycloak_realm"], username=config["keycloak_admin_username"],
+                                            password=config["keycloak_admin_password"], verify=True, auto_refresh_token=['get', 'put', 'post', 'delete'])
+    global_vars.keycloak_callback_url = config["keycloak_callback_url"]
+    global_vars.config_path = options.config
+    global_vars.domain = config["domain"]
+    global_vars.keycloak_client_id = config["keycloak_client_id"]
+    global_vars.templates_dir = config["templates_directory"]
+    global_vars.cookie_secret = config["cookie_secret"]
+
+    if "routing" in config:
+        global_vars.routing = config["routing"]
+
+    # set test mode to bypass authentication
+    options.test = True
+
+
 class ApiTest(AsyncHTTPTestCase):
     
     def get_app(self):
-        # deal with config properties
-        with open(options.config) as json_file:
-            config = json.load(json_file)
-
-        global_vars.port = int(config["port"])
-        global_vars.keycloak = KeycloakOpenID(config["keycloak_base_url"], realm_name=config["keycloak_realm"], client_id=config["keycloak_client_id"],
-                                            client_secret_key=config["keycloak_client_secret"])
-        global_vars.keycloak_admin = KeycloakAdmin(config["keycloak_base_url"], realm_name=config["keycloak_realm"], username=config["keycloak_admin_username"],
-                                                password=config["keycloak_admin_password"], verify=True, auto_refresh_token=['get', 'put', 'post', 'delete'])
-        global_vars.keycloak_callback_url = config["keycloak_callback_url"]
-        global_vars.config_path = options.config
-        global_vars.domain = config["domain"]
-        global_vars.keycloak_client_id = config["keycloak_client_id"]
-        global_vars.templates_dir = config["templates_directory"]
-
-        if "routing" in config:
-            global_vars.routing = config["routing"]
-
-        # set test mode to bypass authentication
-        options.test = True
-
-        return make_app(config["cookie_secret"])
+        setup()
+        return make_app(global_vars.cookie_secret)
 
     def test_main_handler_redirect(self):
         """
@@ -53,3 +59,29 @@ class ApiTest(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertIsInstance(content, str)
         self.assertIn("<html", content)
+
+
+class WebsocketTest(AsyncHTTPTestCase):
+    
+    def get_app(self):
+        setup()
+        return make_app(global_vars.cookie_secret)
+
+    def connect_websocket(self):
+        self.ws_url = tornado.httpclient.HTTPRequest("ws://localhost:{}/websocket".format(self.get_http_port()), validate_cert=False, body=json.dumps({
+                                                     "type": "module_socket_connect", "module": "test_module"}), allow_nonstandard_methods=True)
+        return tornado.websocket.websocket_connect(self.ws_url)
+
+    @gen_test
+    def test_websocket_module_start(self):
+        ws_client = yield self.connect_websocket()
+
+        ws_client.write_message(json.dumps({"type": "module_start",
+                                 "module_name": "test_module",
+                                 "port": 12345,
+                                 "resolve_id": "123456789"}))
+
+        response = yield ws_client.read_message()
+        print(response)
+        self.assertEqual(type(response), str)
+        
