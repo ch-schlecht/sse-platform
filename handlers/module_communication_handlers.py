@@ -7,6 +7,7 @@ import nacl.encoding
 import nacl.exceptions
 import nacl.signing
 import tornado.escape
+from tornado.options import options
 import tornado.websocket
 
 import global_vars
@@ -66,8 +67,11 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
         :param message: the message originating from a module
 
         """
-
-        json_message = self._verify_msg(message)
+        # if we are in test mode, messages are not signed
+        if options.test:
+            json_message = tornado.escape.json_decode(message)
+        else:
+            json_message = self._verify_msg(message)
         print("got message:")
         print(json_message)
         if json_message is None:
