@@ -72,8 +72,10 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
         callback if the connection has been closed by the client. delete it from the connections set.
 
         """
-
-        del global_vars.servers[self.module_name]
+        try:
+            del global_vars.servers[self.module_name]
+        except KeyError:
+            logger.info("Client {} was never registered as started module (probably never sent a valid module_start message?)".format(self.module_name))
         self.connections.remove(self)
         logger.info("Client disconnected: {}".format(self.module_name))
 
@@ -164,7 +166,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
             self._post_template(json_message)
             return
 
-        # default case        
+        # default case
         else:
             self.write_message({"type": "protocol_error",
                                 "success": False,
