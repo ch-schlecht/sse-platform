@@ -1,5 +1,6 @@
 import functools
 import logging
+import logging.handlers
 from typing import Awaitable, Callable, Optional
 
 import sys
@@ -20,7 +21,7 @@ def get_logger(name: str) -> logging.Logger:
 
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
-    f_handler = logging.FileHandler("log.log")
+    f_handler = logging.handlers.RotatingFileHandler("log.log", "a", maxBytes=5*1024*1024)
     c_handler = logging.StreamHandler(sys.stdout)
     f_handler.setLevel(logging.INFO - 1)
     c_handler.setLevel(logging.INFO - 1)
