@@ -2,12 +2,15 @@ import json
 
 from keycloak import KeycloakAdmin, KeycloakOpenID
 from tornado import gen
+from tornado.ioloop import IOLoop
 from tornado.options import options
 from tornado.testing import AsyncHTTPTestCase, gen_test
 import tornado.websocket
 
 import global_vars
-from main import make_app 
+from main import make_app
+
+MESSAGE_FORMAT_ERROR = "message_format_error"
 
 
 def setup():
@@ -16,9 +19,9 @@ def setup():
         config = json.load(json_file)
 
     global_vars.keycloak = KeycloakOpenID(config["keycloak_base_url"], realm_name=config["keycloak_realm"], client_id=config["keycloak_client_id"],
-                                        client_secret_key=config["keycloak_client_secret"])
+                                          client_secret_key=config["keycloak_client_secret"])
     global_vars.keycloak_admin = KeycloakAdmin(config["keycloak_base_url"], realm_name=config["keycloak_realm"], username=config["keycloak_admin_username"],
-                                            password=config["keycloak_admin_password"], verify=True, auto_refresh_token=['get', 'put', 'post', 'delete'])
+                                               password=config["keycloak_admin_password"], verify=True, auto_refresh_token=['get', 'put', 'post', 'delete'])
     global_vars.keycloak_callback_url = config["keycloak_callback_url"]
     global_vars.config_path = options.config
     global_vars.domain = config["domain"]
@@ -33,8 +36,40 @@ def setup():
     options.test = True
 
 
+def connect_websocket(http_port):
+    ws_url = tornado.httpclient.HTTPRequest("ws://localhost:{}/websocket".format(http_port), validate_cert=False, body=json.dumps({
+        "type": "module_socket_connect", "module": "test_module"}), allow_nonstandard_methods=True)
+    return tornado.websocket.websocket_connect(ws_url)
+
+
+def validate_json_str(suspect_str: str) -> bool:
+    try:
+        json.loads(suspect_str)
+    except:
+        return False
+    return True
+
+def has_matching_resolve_id(request: dict, response: dict):
+    """
+    returns True if request and response have the same resolve_id, False otherwise
+    """
+
+    if ("resolve_id" not in request) or ("resolve_id" not in response):
+        return False
+    return request["resolve_id"] == response["resolve_id"]
+
+def has_matching_type(request: dict, response: dict):
+    """
+    returns True if request's type key is the same as response type key concatenated with '_response'
+    """
+
+    if ("type" not in request) or ("type" not in response):
+        return False
+    return request["type"] + "_response" == response["type"]
+
+
 class ApiTest(AsyncHTTPTestCase):
-    
+
     def get_app(self):
         setup()
         return make_app(global_vars.cookie_secret)
@@ -61,27 +96,246 @@ class ApiTest(AsyncHTTPTestCase):
         self.assertIn("<html", content)
 
 
-class WebsocketTest(AsyncHTTPTestCase):
-    
+class BaseWebsocketTestCase(AsyncHTTPTestCase):
+
     def get_app(self):
-        setup()
         return make_app(global_vars.cookie_secret)
 
-    def connect_websocket(self):
-        self.ws_url = tornado.httpclient.HTTPRequest("ws://localhost:{}/websocket".format(self.get_http_port()), validate_cert=False, body=json.dumps({
-                                                     "type": "module_socket_connect", "module": "test_module"}), allow_nonstandard_methods=True)
-        return tornado.websocket.websocket_connect(self.ws_url)
+    def setUp(self) -> None:
+        super().setUp()
+        setup()
+
+    @gen.coroutine
+    def module_start(self) -> None:
+        # start the module
+        request = {"type": "module_start",
+                   "module_name": "test_module",
+                   "port": 12345,
+                   "resolve_id": "123456789"}
+        self.ws_client = yield connect_websocket(self.get_http_port())
+        self.ws_client.write_message(json.dumps(request))
+        yield self.ws_client.read_message()
+
+
+class WebsocketTestModuleStart(BaseWebsocketTestCase):
 
     @gen_test
-    def test_websocket_module_start(self):
-        ws_client = yield self.connect_websocket()
-
-        ws_client.write_message(json.dumps({"type": "module_start",
-                                 "module_name": "test_module",
-                                 "port": 12345,
-                                 "resolve_id": "123456789"}))
-
+    def test_websocket_module_start_success(self):
+        # send valid module_start message and await response
+        request = {"type": "module_start",
+                   "module_name": "test_module",
+                   "port": 12345,
+                   "resolve_id": "123456789"}
+        ws_client = yield connect_websocket(self.get_http_port())
+        ws_client.write_message(json.dumps(request))
         response = yield ws_client.read_message()
-        print(response)
-        self.assertEqual(type(response), str)
+
+        # closing the socket makes the platform act like the module disconnects
+        # we have to do this before we do any assertions, because if they fail, a following close wouldn't execute
+        ws_client.close()
+
+        # expect valid json
+        is_json = validate_json_str(response)
+        self.assertEqual(is_json, True)
+
+        response = json.loads(response)
+
+        # expect a matching resolve_id and also matching type keys
+        self.assertTrue(has_matching_resolve_id(request, response))
+        self.assertTrue(has_matching_type(request, response))
+
+        # expect a "success" key and that it has true value
+        self.assertIn("success", response)
+        self.assertEqual(response["success"], True)
+
+        # expect resolve_id's in request and response to match
+        self.assertIn("resolve_id", response)
+        self.assertEqual(request["resolve_id"], response["resolve_id"])
+
+    @gen_test
+    def test_websocket_module_start_error_no_module_name(self):
+        # send invalid module_start message that misses module_name and await response
+        request = {"type": "module_start",
+                   "port": 12345,
+                   "resolve_id": "123456789"}
+        ws_client = yield connect_websocket(self.get_http_port())
+        ws_client.write_message(json.dumps(request))
+        response = yield ws_client.read_message()
+
+        # closing the socket makes the platform act like the module disconnects
+        # we have to do this before we do any assertions, because if they fail, a following close wouldn't execute
+        ws_client.close()
+
+        # expect valid json
+        is_json = validate_json_str(response)
+        self.assertEqual(is_json, True)
+
+        response = json.loads(response)
+
+        # expect a matching resolve_id and also matching type keys
+        self.assertTrue(has_matching_resolve_id(request, response))
+        self.assertTrue(has_matching_type(request, response))
+
+        # expect a "success" key and that it is False this time
+        self.assertIn("success", response)
+        self.assertEqual(response["success"], False)
+
+        # expect a message format error as the reason
+        self.assertIn("reason", response)
+        self.assertEqual(response["reason"], MESSAGE_FORMAT_ERROR)
+
+    @gen_test
+    def test_websocket_module_start_error_no_port(self):
+        # send invalid module_start message that misses port and await response
+        request = {"type": "module_start",
+                   "module_name": "test_module",
+                   "resolve_id": "123456789"}
+        ws_client = yield connect_websocket(self.get_http_port())
+        ws_client.write_message(json.dumps(request))
+        response = yield ws_client.read_message()
+
+        # closing the socket makes the platform act like the module disconnects
+        # we have to do this before we do any assertions, because if they fail, a following close wouldn't execute
+        ws_client.close()
+
+        # expect valid json
+        is_json = validate_json_str(response)
+        self.assertEqual(is_json, True)
+
+        response = json.loads(response)
+
+        # expect a matching resolve_id and also matching type keys
+        self.assertTrue(has_matching_resolve_id(request, response))
+        self.assertTrue(has_matching_type(request, response))
+
+        # expect a "success" key and that it is False this time
+        self.assertIn("success", response)
+        self.assertEqual(response["success"], False)
+
+        # expect a message format error as the reason
+        self.assertIn("reason", response)
+        self.assertEqual(response["reason"], MESSAGE_FORMAT_ERROR)
+
+    @gen_test
+    def test_websocket_module_start_error_already_running(self):
+        # send valid module_start message first that starts the module
+        request = {"type": "module_start",
+                   "module_name": "test_module",
+                   "port": 12345,
+                   "resolve_id": "123456789"}
+        ws_client = yield connect_websocket(self.get_http_port())
+        ws_client.write_message(json.dumps(request))
+        yield ws_client.read_message()
+
+        # send another (valid) module_start request, but this time expecting and already_running error
+        ws_client.write_message(json.dumps(request))
+        response = yield ws_client.read_message()
+
+        # closing the socket makes the platform act like the module disconnects
+        # we have to do this before we do any assertions, because if they fail, a following close wouldn't execute
+        ws_client.close()
+
+        # expect valid json
+        is_json = validate_json_str(response)
+        self.assertEqual(is_json, True)
+
+        response = json.loads(response)
+
+        # expect a matching resolve_id and also matching type keys
+        self.assertTrue(has_matching_resolve_id(request, response))
+        self.assertTrue(has_matching_type(request, response))
+
+        # expect a "success" key and that it is False this time
+        self.assertIn("success", response)
+        self.assertEqual(response["success"], False)
+
+        # expect a message format error as the reason
+        self.assertIn("reason", response)
+        self.assertEqual(response["reason"], "already_running")
+
+
+class WebsocketTestUserLogout(BaseWebsocketTestCase):
+
+    @gen_test
+    def test_websocket_user_logout_success(self):
+        yield self.module_start()
+        request = {"type": "user_logout",
+                   "resolve_id": "123456789"}
+        self.ws_client.write_message(json.dumps(request))
+
+        broadcast = yield self.ws_client.read_message()
+
+        # second message is the actual response only to me as the requester
+        response = yield self.ws_client.read_message()
+
+        self.ws_client.close()
+
+        # expect valid json
+        is_json = validate_json_str(broadcast)
+        self.assertEqual(is_json, True)
+
+        broadcast = json.loads(broadcast)
+
+        # first message is the broadcast of the request to all modules, so it has to be equal to the request
+        self.assertEqual(broadcast, request)
         
+        # expect valid json
+        is_json = validate_json_str(response)
+        self.assertEqual(is_json, True)
+
+        response = json.loads(response)
+
+        # expect a matching resolve_id and also matching type keys
+        self.assertTrue(has_matching_resolve_id(request, response))
+        self.assertTrue(has_matching_type(request, response))
+
+        # expect a "success" key and that it has true value
+        self.assertIn("success", response)
+        self.assertEqual(response["success"], True)
+
+
+class WebsocketTestGetUser(BaseWebsocketTestCase):
+
+    @gen_test
+    def test_websocket_get_user_success(self):
+        yield self.module_start()
+
+        request = {"type": "get_user",
+                   "resolve_id": "123456789",
+                   "username": "unittest_testuser"}
+        self.ws_client.write_message(json.dumps(request))
+
+        response = yield self.ws_client.read_message()
+
+        self.ws_client.close()
+
+        # expect valid json
+        is_json = validate_json_str(response)
+        self.assertEqual(is_json, True)
+
+        response = json.loads(response)
+
+        # expect a matching resolve_id and also matching type keys
+        self.assertTrue(has_matching_resolve_id(request, response))
+        self.assertTrue(has_matching_type(request, response))
+
+        # if our response is a keycloak error, theres nothing we can do about here, skip further assertions!
+        if "reason" in response:
+            if response["reason"] == "keycloak_error":
+                return
+
+        # expect a "success" key and that it has true value
+        self.assertIn("success", response)
+        self.assertEqual(response["success"], True)
+
+        # expect a "user" key
+        self.assertIn("user", response)
+
+        # expect the "user"-subdict to have all those keys: id, email, username, role
+        self.assertTrue(all(key in response["user"] for key in [
+                        "id", "email", "username", "role"]))
+
+        # check the values of the user
+        self.assertEqual("testuser@unittest.com", response["user"]["email"])
+        self.assertEqual("unittest_testuser", response["user"]["username"])
+        self.assertEqual("user", response["user"]["role"])
