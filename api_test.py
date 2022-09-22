@@ -11,6 +11,12 @@ import global_vars
 from main import make_app
 
 MESSAGE_FORMAT_ERROR = "message_format_error"
+KEYCLOAK_ERROR = "keycloak_error"
+
+class TEST_USER:
+    NAME = "unittest_testuser"
+    EMAIL = "testuser@unittest.com"
+    ROLE = "user"
 
 
 def setup():
@@ -116,8 +122,42 @@ class BaseWebsocketTestCase(AsyncHTTPTestCase):
         self.ws_client.write_message(json.dumps(request))
         yield self.ws_client.read_message()
 
+    @gen.coroutine
+    def base_checks(self, request: dict, expect_success: bool) -> dict:
+        yield self.module_start()
+
+        self.ws_client.write_message(json.dumps(request))
+
+        response = yield self.ws_client.read_message()
+
+        # closing the socket makes the platform act like the module disconnects
+        # we have to do this before we do any assertions, because if they fail, a following close wouldn't execute
+        self.ws_client.close()
+
+        # expect valid json
+        is_json = validate_json_str(response)
+        self.assertEqual(is_json, True)
+
+        response = json.loads(response)
+
+        # expect a matching resolve_id and also matching type keys
+        self.assertTrue(has_matching_resolve_id(request, response))
+        self.assertTrue(has_matching_type(request, response))
+
+        # if our response is a keycloak error, theres nothing we can do about here, skip further assertions!
+        if "reason" in response:
+            if response["reason"] == KEYCLOAK_ERROR:
+                raise RuntimeError("Keycloak Error occured, nothing we can do from our side")
+
+        # expect a "success" key and that it has true value
+        self.assertIn("success", response)
+        self.assertEqual(response["success"], expect_success)
+
+        return response
+
 
 class WebsocketTestModuleStart(BaseWebsocketTestCase):
+    # we cannot use the base checks here, because module_start message is always sent, which would then be sent double which would break the state of the platform
 
     @gen_test
     def test_websocket_module_start_success(self):
@@ -258,6 +298,10 @@ class WebsocketTestUserLogout(BaseWebsocketTestCase):
 
     @gen_test
     def test_websocket_user_logout_success(self):
+        # cannot use the base checks here, because two messages are coming in
+        # with the first one not being the actual response --> base assertions would break
+        # so gotta do it manually
+
         yield self.module_start()
         request = {"type": "user_logout",
                    "resolve_id": "123456789"}
@@ -268,6 +312,8 @@ class WebsocketTestUserLogout(BaseWebsocketTestCase):
         # second message is the actual response only to me as the requester
         response = yield self.ws_client.read_message()
 
+        # closing the socket makes the platform act like the module disconnects
+        # we have to do this before we do any assertions, because if they fail, a following close wouldn't execute
         self.ws_client.close()
 
         # expect valid json
@@ -298,35 +344,17 @@ class WebsocketTestGetUser(BaseWebsocketTestCase):
 
     @gen_test
     def test_websocket_get_user_success(self):
-        yield self.module_start()
-
         request = {"type": "get_user",
                    "resolve_id": "123456789",
-                   "username": "unittest_testuser"}
-        self.ws_client.write_message(json.dumps(request))
+                   "username": TEST_USER.NAME}
 
-        response = yield self.ws_client.read_message()
-
-        self.ws_client.close()
-
-        # expect valid json
-        is_json = validate_json_str(response)
-        self.assertEqual(is_json, True)
-
-        response = json.loads(response)
-
-        # expect a matching resolve_id and also matching type keys
-        self.assertTrue(has_matching_resolve_id(request, response))
-        self.assertTrue(has_matching_type(request, response))
-
-        # if our response is a keycloak error, theres nothing we can do about here, skip further assertions!
-        if "reason" in response:
-            if response["reason"] == "keycloak_error":
-                return
-
-        # expect a "success" key and that it has true value
-        self.assertIn("success", response)
-        self.assertEqual(response["success"], True)
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, True)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
 
         # expect a "user" key
         self.assertIn("user", response)
@@ -336,6 +364,92 @@ class WebsocketTestGetUser(BaseWebsocketTestCase):
                         "id", "email", "username", "role"]))
 
         # check the values of the user
-        self.assertEqual("testuser@unittest.com", response["user"]["email"])
-        self.assertEqual("unittest_testuser", response["user"]["username"])
-        self.assertEqual("user", response["user"]["role"])
+        self.assertEqual(TEST_USER.EMAIL, response["user"]["email"])
+        self.assertEqual(TEST_USER.NAME, response["user"]["username"])
+        self.assertEqual(TEST_USER.ROLE, response["user"]["role"])
+
+    @gen_test
+    def test_websocket_get_user_error_missing_username(self):
+        # request is missing the username key, therefore we expect failure
+        request = {"type": "get_user",
+                   "resolve_id": "123456789"}
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, False)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect a message format error as the reason
+        self.assertIn("reason", response)
+        self.assertEqual(response["reason"], MESSAGE_FORMAT_ERROR)
+
+    
+    @gen_test
+    def test_websocket_get_user_list_success(self):
+        request = {"type": "get_user_list",
+                   "resolve_id": "123456789"}
+        
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, True)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect a "users" key
+        self.assertIn("users", response)
+
+        # expect the test user to be in the user list
+        self.assertIn(TEST_USER.NAME, response["users"])
+
+        # expect the testuser-subdict to have all those keys: id, email, username, role
+        self.assertTrue(all(key in response["users"][TEST_USER.NAME] for key in [
+                        "id", "email", "username", "role"]))
+
+        # check the values of the testuser
+        self.assertEqual(TEST_USER.EMAIL, response["users"][TEST_USER.NAME]["email"])
+        self.assertEqual(TEST_USER.NAME, response["users"][TEST_USER.NAME]["username"])
+        self.assertEqual(TEST_USER.ROLE, response["users"][TEST_USER.NAME]["role"])
+
+    @gen_test
+    def test_websocket_check_permission_success(self):
+        request = {"type": "check_permission",
+                   "resolve_id": "123456789",
+                   "username": TEST_USER.NAME}
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, True)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect a "role" key
+        self.assertIn("role", response)
+
+        # expect the value to match
+        self.assertEqual(TEST_USER.ROLE, response["role"])
+
+    @gen_test
+    def test_websocket_check_permission_error_missing_username(self):
+        # request misses username key
+        request = {"type": "check_permission",
+                   "resolve_id": "123456789"}
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, False)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect a message format error as the reason
+        self.assertIn("reason", response)
+        self.assertEqual(response["reason"], MESSAGE_FORMAT_ERROR)
+
