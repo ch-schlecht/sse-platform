@@ -42,37 +42,12 @@ def setup():
     options.test = True
 
 
-def connect_websocket(http_port):
-    ws_url = tornado.httpclient.HTTPRequest("ws://localhost:{}/websocket".format(http_port), validate_cert=False, body=json.dumps({
-        "type": "module_socket_connect", "module": "test_module"}), allow_nonstandard_methods=True)
-    return tornado.websocket.websocket_connect(ws_url)
-
-
 def validate_json_str(suspect_str: str) -> bool:
     try:
         json.loads(suspect_str)
     except:
         return False
     return True
-
-def has_matching_resolve_id(request: dict, response: dict):
-    """
-    returns True if request and response have the same resolve_id, False otherwise
-    """
-
-    if ("resolve_id" not in request) or ("resolve_id" not in response):
-        return False
-    return request["resolve_id"] == response["resolve_id"]
-
-def has_matching_type(request: dict, response: dict):
-    """
-    returns True if request's type key is the same as response type key concatenated with '_response'
-    """
-
-    if ("type" not in request) or ("type" not in response):
-        return False
-    return request["type"] + "_response" == response["type"]
-
 
 class ApiTest(AsyncHTTPTestCase):
 
@@ -111,14 +86,40 @@ class BaseWebsocketTestCase(AsyncHTTPTestCase):
         super().setUp()
         setup()
 
+        self.module_name = "test_module"
+        self.port = 12345
+
+    def connect_websocket(self):
+        ws_url = tornado.httpclient.HTTPRequest("ws://localhost:{}/websocket".format(self.get_http_port()), validate_cert=False, body=json.dumps({
+            "type": "module_socket_connect", "module": "test_module"}), allow_nonstandard_methods=True)
+        return tornado.websocket.websocket_connect(ws_url)
+
+    def assert_has_matching_resolve_id(self, request: dict, response: dict):
+        """
+        check if request and response have the same resolve_id
+        """
+
+        self.assertIn("resolve_id", request)
+        self.assertIn("resolve_id", response)
+        self.assertEqual(request["resolve_id"], response["resolve_id"])
+
+    def assert_has_matching_type(self, request: dict, response: dict):
+        """
+        check if request's type key is the same as response type key concatenated with '_response'
+        """
+
+        self.assertIn("type", request)
+        self.assertIn("type", response)
+        self.assertEqual(request["type"] + "_response", response["type"])
+
     @gen.coroutine
     def module_start(self) -> None:
         # start the module
         request = {"type": "module_start",
-                   "module_name": "test_module",
-                   "port": 12345,
+                   "module_name": self.module_name,
+                   "port": self.port,
                    "resolve_id": "123456789"}
-        self.ws_client = yield connect_websocket(self.get_http_port())
+        self.ws_client = yield self.connect_websocket()
         self.ws_client.write_message(json.dumps(request))
         yield self.ws_client.read_message()
 
@@ -141,8 +142,8 @@ class BaseWebsocketTestCase(AsyncHTTPTestCase):
         response = json.loads(response)
 
         # expect a matching resolve_id and also matching type keys
-        self.assertTrue(has_matching_resolve_id(request, response))
-        self.assertTrue(has_matching_type(request, response))
+        self.assert_has_matching_resolve_id(request, response)
+        self.assert_has_matching_type(request, response)
 
         # if our response is a keycloak error, theres nothing we can do about here, skip further assertions!
         if "reason" in response:
@@ -166,7 +167,7 @@ class WebsocketTestModuleStart(BaseWebsocketTestCase):
                    "module_name": "test_module",
                    "port": 12345,
                    "resolve_id": "123456789"}
-        ws_client = yield connect_websocket(self.get_http_port())
+        ws_client = yield self.connect_websocket()
         ws_client.write_message(json.dumps(request))
         response = yield ws_client.read_message()
 
@@ -181,8 +182,8 @@ class WebsocketTestModuleStart(BaseWebsocketTestCase):
         response = json.loads(response)
 
         # expect a matching resolve_id and also matching type keys
-        self.assertTrue(has_matching_resolve_id(request, response))
-        self.assertTrue(has_matching_type(request, response))
+        self.assert_has_matching_resolve_id(request, response)
+        self.assert_has_matching_type(request, response)
 
         # expect a "success" key and that it has true value
         self.assertIn("success", response)
@@ -198,7 +199,7 @@ class WebsocketTestModuleStart(BaseWebsocketTestCase):
         request = {"type": "module_start",
                    "port": 12345,
                    "resolve_id": "123456789"}
-        ws_client = yield connect_websocket(self.get_http_port())
+        ws_client = yield self.connect_websocket()
         ws_client.write_message(json.dumps(request))
         response = yield ws_client.read_message()
 
@@ -213,8 +214,8 @@ class WebsocketTestModuleStart(BaseWebsocketTestCase):
         response = json.loads(response)
 
         # expect a matching resolve_id and also matching type keys
-        self.assertTrue(has_matching_resolve_id(request, response))
-        self.assertTrue(has_matching_type(request, response))
+        self.assert_has_matching_resolve_id(request, response)
+        self.assert_has_matching_type(request, response)
 
         # expect a "success" key and that it is False this time
         self.assertIn("success", response)
@@ -230,7 +231,7 @@ class WebsocketTestModuleStart(BaseWebsocketTestCase):
         request = {"type": "module_start",
                    "module_name": "test_module",
                    "resolve_id": "123456789"}
-        ws_client = yield connect_websocket(self.get_http_port())
+        ws_client = yield self.connect_websocket()
         ws_client.write_message(json.dumps(request))
         response = yield ws_client.read_message()
 
@@ -245,8 +246,8 @@ class WebsocketTestModuleStart(BaseWebsocketTestCase):
         response = json.loads(response)
 
         # expect a matching resolve_id and also matching type keys
-        self.assertTrue(has_matching_resolve_id(request, response))
-        self.assertTrue(has_matching_type(request, response))
+        self.assert_has_matching_resolve_id(request, response)
+        self.assert_has_matching_type(request, response)
 
         # expect a "success" key and that it is False this time
         self.assertIn("success", response)
@@ -263,7 +264,7 @@ class WebsocketTestModuleStart(BaseWebsocketTestCase):
                    "module_name": "test_module",
                    "port": 12345,
                    "resolve_id": "123456789"}
-        ws_client = yield connect_websocket(self.get_http_port())
+        ws_client = yield self.connect_websocket()
         ws_client.write_message(json.dumps(request))
         yield ws_client.read_message()
 
@@ -282,8 +283,8 @@ class WebsocketTestModuleStart(BaseWebsocketTestCase):
         response = json.loads(response)
 
         # expect a matching resolve_id and also matching type keys
-        self.assertTrue(has_matching_resolve_id(request, response))
-        self.assertTrue(has_matching_type(request, response))
+        self.assert_has_matching_resolve_id(request, response)
+        self.assert_has_matching_type(request, response)
 
         # expect a "success" key and that it is False this time
         self.assertIn("success", response)
@@ -332,8 +333,8 @@ class WebsocketTestUserLogout(BaseWebsocketTestCase):
         response = json.loads(response)
 
         # expect a matching resolve_id and also matching type keys
-        self.assertTrue(has_matching_resolve_id(request, response))
-        self.assertTrue(has_matching_type(request, response))
+        self.assert_has_matching_resolve_id(request, response)
+        self.assert_has_matching_type(request, response)
 
         # expect a "success" key and that it has true value
         self.assertIn("success", response)
@@ -452,4 +453,62 @@ class WebsocketTestGetUser(BaseWebsocketTestCase):
         # expect a message format error as the reason
         self.assertIn("reason", response)
         self.assertEqual(response["reason"], MESSAGE_FORMAT_ERROR)
+
+    @gen_test
+    def test_websocket_get_running_modules_success(self):
+        request = {"type": "get_running_modules",
+                   "resolve_id": "123456789"}
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, True)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect a running_modules key and that our test_module is in there with the correct port
+        self.assertIn("running_modules", response)
+        self.assertIn(self.module_name, response["running_modules"])
+        self.assertEqual(self.port, int(response["running_modules"][self.module_name]["port"]))
+
+    @gen_test
+    def test_websocket_message_module_success(self):
+        # TODO gotta send the message to myself and also answer to myself
+        pass
+
+    @gen_test
+    def test_websocket_message_module_error_no_to(self):
+        request = {"type": "message_module",
+                   "resolve_id": "123456789"}
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, False)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect a message format error as the reason
+        self.assertIn("reason", response)
+        self.assertEqual(response["reason"], MESSAGE_FORMAT_ERROR)
+
+    @gen_test
+    def test_websocket_message_module_error_module_offline(self):
+        request = {"type": "message_module",
+                   "resolve_id": "123456789",
+                   "to": "offline_module"}
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, False)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect module_offline as fail reason
+        self.assertIn("reason", response)
+        self.assertEqual(response["reason"], "module_offline")
 
