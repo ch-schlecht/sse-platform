@@ -346,6 +346,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
         online = False
         for client in self.connections:
             if client.module_name == json_message["to"]:
+                json_message["origin"] = self.module_name
                 client.write_message(json_message)
                 online = True
                 break
