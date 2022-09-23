@@ -474,8 +474,45 @@ class WebsocketTestGetUser(BaseWebsocketTestCase):
 
     @gen_test
     def test_websocket_message_module_success(self):
-        # TODO gotta send the message to myself and also answer to myself
-        pass
+        """
+        this test is a bit simplified: send message to myself, so that only one websocket connection is needed,
+        the response needs no testing since it does exactly the same
+        """
+
+        yield self.module_start()
+
+        request = {
+            "type": "message_module",
+            "resolve_id": "123456789",
+            "to": "test_module",
+            "msg": "test"
+        }
+
+        self.ws_client.write_message(json.dumps(request))
+
+        response = yield self.ws_client.read_message()
+
+        # closing the socket makes the platform act like the module disconnects
+        # we have to do this before we do any assertions, because if they fail, a following close wouldn't execute
+        self.ws_client.close()
+
+        # expect valid json
+        is_json = validate_json_str(response)
+        self.assertEqual(is_json, True)
+
+        response = json.loads(response)
+
+        # since we messaged ourselves, we simply assert that request is same as response (with added origin field from platform)
+        self.assertIn("type", response)
+        self.assertIn("to", response)
+        self.assertIn("msg", response)
+        self.assertIn("origin", response)
+        self.assertEqual(request["type"], response["type"])
+        self.assertEqual(request["to"], response["to"])
+        self.assertEqual(request["msg"], response["msg"])
+        self.assertEqual(self.module_name, response["origin"])
+
+
 
     @gen_test
     def test_websocket_message_module_error_no_to(self):
