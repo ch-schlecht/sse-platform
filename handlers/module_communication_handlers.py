@@ -390,7 +390,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
         if not os.path.isdir(global_vars.templates_dir):
             self.write_message({"type": "get_template_response",
                                 "success": False,
-                                "reason": "template directory not set up",
+                                "reason": "template_directory_not_set_up",
                                 "resolve_id": json_message["resolve_id"]})
             return
 
@@ -398,7 +398,7 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
         if not os.path.isfile(global_vars.templates_dir + "/" + template_name):
             self.write_message({"type": "get_template_response",
                                 "success": False,
-                                "reason": "template not found",
+                                "reason": "template_not_found",
                                 "resolve_id": json_message["resolve_id"]})
             return
 
@@ -418,6 +418,14 @@ class WebsocketHandler(tornado.websocket.WebSocketHandler, metaclass=ABCMeta):
                                 "success": False,
                                 "reason": "message_format_error",
                                 "description": "Message misses key 'template_name'",
+                                "resolve_id": json_message["resolve_id"]})
+            return
+
+        if "template" not in json_message:
+            self.write_message({"type": "post_template_response",
+                                "success": False,
+                                "reason": "message_format_error",
+                                "description": "Message misses key 'template'",
                                 "resolve_id": json_message["resolve_id"]})
             return
 
