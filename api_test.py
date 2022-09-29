@@ -1,4 +1,5 @@
 import json
+import os
 
 from keycloak import KeycloakAdmin, KeycloakOpenID
 from tornado import gen
@@ -17,6 +18,8 @@ class TEST_USER:
     NAME = "unittest_testuser"
     EMAIL = "testuser@unittest.com"
     ROLE = "user"
+
+TEST_TEMPLATE = "unittest.html"
 
 
 def setup():
@@ -416,6 +419,9 @@ class WebsocketTestGetUser(BaseWebsocketTestCase):
         self.assertEqual(TEST_USER.NAME, response["users"][TEST_USER.NAME]["username"])
         self.assertEqual(TEST_USER.ROLE, response["users"][TEST_USER.NAME]["role"])
 
+
+class WebsocketTestCheckPermission(BaseWebsocketTestCase):
+
     @gen_test
     def test_websocket_check_permission_success(self):
         request = {"type": "check_permission",
@@ -454,6 +460,9 @@ class WebsocketTestGetUser(BaseWebsocketTestCase):
         self.assertIn("reason", response)
         self.assertEqual(response["reason"], MESSAGE_FORMAT_ERROR)
 
+
+class WebsocketTestGetRunningModules(BaseWebsocketTestCase):
+
     @gen_test
     def test_websocket_get_running_modules_success(self):
         request = {"type": "get_running_modules",
@@ -471,6 +480,9 @@ class WebsocketTestGetUser(BaseWebsocketTestCase):
         self.assertIn("running_modules", response)
         self.assertIn(self.module_name, response["running_modules"])
         self.assertEqual(self.port, int(response["running_modules"][self.module_name]["port"]))
+
+
+class WebsocketTestMessageModule(BaseWebsocketTestCase):
 
     @gen_test
     def test_websocket_message_module_success(self):
@@ -515,7 +527,7 @@ class WebsocketTestGetUser(BaseWebsocketTestCase):
 
 
     @gen_test
-    def test_websocket_message_module_error_no_to(self):
+    def test_websocket_message_module_error_missing_to(self):
         request = {"type": "message_module",
                    "resolve_id": "123456789"}
 
@@ -549,3 +561,184 @@ class WebsocketTestGetUser(BaseWebsocketTestCase):
         self.assertIn("reason", response)
         self.assertEqual(response["reason"], "module_offline")
 
+
+class WebsocketTestGetTemplates(BaseWebsocketTestCase):
+
+
+    def setUp(self) -> None:
+        super().setUp()
+
+        self.template_content = "<p>Unittest template: {{name}}!</p>"
+
+        # check if the templates directory exists and setup the unittest template
+        if not os.path.isdir(global_vars.templates_dir):
+            os.mkdir(global_vars.templates_dir)
+        with open(global_vars.templates_dir + "/" + TEST_TEMPLATE, "w") as fp:
+            fp.write(self.template_content)
+
+    def tearDown(self) -> None:
+        super().tearDown()
+
+        # clean up unittest template
+        try:
+            os.remove(global_vars.templates_dir + "/" + TEST_TEMPLATE)
+        except FileNotFoundError:
+            pass
+
+    @gen_test
+    def test_websocket_get_template_success(self):
+        request = {
+            "type": "get_template",
+            "resolve_id": "987654321",
+            "template_name": TEST_TEMPLATE
+        }
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, True)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect the template to be exactly the content we set in the setup
+        self.assertIn("template", response)
+        self.assertEqual(self.template_content, response["template"])
+
+    @gen_test
+    def test_websocket_get_template_error_missing_template_name(self):
+        request = {
+            "type": "get_template",
+            "resolve_id": "987654321"
+        }
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, False)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect a message format error as the reason
+        self.assertIn("reason", response)
+        self.assertEqual(response["reason"], MESSAGE_FORMAT_ERROR)
+
+    @gen_test
+    def test_websocket_get_template_error_template_doesnt_exist(self):
+        request = {
+            "type": "get_template",
+            "resolve_id": "987654321",
+            "template_name": "not_existing_template"
+        }
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, False)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect a template not found error as the reason
+        self.assertIn("reason", response)
+        self.assertEqual(response["reason"], "template_not_found")
+
+
+class WebsocketTestPostTemplates(BaseWebsocketTestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+
+        self.template_name = "posted_template.html"
+        self.template_content = "<p>posted template: {{name}}!</p>"
+
+        # check if the templates directory exists
+        if not os.path.isdir(global_vars.templates_dir):
+            os.mkdir(global_vars.templates_dir)
+
+    def tearDown(self) -> None:
+        super().tearDown()
+
+        # clean up unittest template
+        try:
+            os.remove(global_vars.templates_dir + "/" + self.template_name)
+        except FileNotFoundError:
+            pass
+
+    @gen_test
+    def test_websocket_post_template_success(self):
+        request = {
+            "type": "post_template",
+            "resolve_id": "987654321",
+            "template_name": self.template_name,
+            "template": self.template_content
+        }
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, True)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+
+        # do a get_template afterwards to check if it was really created
+        request = {
+            "type": "get_template",
+            "resolve_id": "987654321",
+            "template_name": self.template_name
+        }
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, True)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect the template to be exactly the content we set in the setup
+        self.assertIn("template", response)
+        self.assertEqual(self.template_content, response["template"])
+
+    @gen_test
+    def test_websocket_post_template_error_missing_template_name(self):
+        request = {
+            "type": "post_template",
+            "resolve_id": "987654321",
+            "template": self.template_content
+        }
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, False)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect a message format error as the reason
+        self.assertIn("reason", response)
+        self.assertEqual(response["reason"], MESSAGE_FORMAT_ERROR)
+
+    @gen_test
+    def test_websocket_post_template_error_missing_template(self):
+        request = {
+            "type": "post_template",
+            "resolve_id": "987654321",
+            "template_name": self.template_name
+        }
+
+        # do the base checks that are the same for every request
+        # but skip this test if a keycloak error occurs within that we cannot do anything about here
+        try:
+            response = yield self.base_checks(request, False)
+        except RuntimeError:
+            print("Keycloak Error occured, Test skipped")
+            return
+
+        # expect a message format error as the reason
+        self.assertIn("reason", response)
+        self.assertEqual(response["reason"], MESSAGE_FORMAT_ERROR)
