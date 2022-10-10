@@ -85,9 +85,8 @@ async def main() -> None:
     """
     the main function.
         1. parse command line arguments
-        2. load ssl context (needed for https)
-        3. init the database (connect, create tables if necessary)
-        4. start the server
+        2. build app & http server
+        3. start and run until stopped
 
     """
     tornado.options.parse_command_line()
