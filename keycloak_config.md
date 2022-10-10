@@ -1,7 +1,8 @@
-Client Roles in Userinfo request mit schicken lassen:
-- client anlegen
-- roles im client anlegen
-- users -> role mappings -> client roles -> user zu roles hinzufügen
+Client Roles in Userinfo request mit schicken lassen (im realm):
+- Roles anlegen und zuweisen:
+  - (client anlegen)
+  - (roles im client anlegen)
+  - (users -> role mappings -> client roles -> user zu roles hinzufügen)
 - client scopes -> profile -> mappers --> add builtin --> client roles adden
 - client roles -> add to userinfo auf on
 
@@ -10,9 +11,10 @@ Admin Account der User anschauen darf (im realm):
 - account anlegen (oder existierenden nehmen)
 - users -> (der user) -> role Mappings -> client roles -> realm-management
 - view-users role assignen
-- mit KeycloakAdmin klasse verbinden und user abfragen
+- KeycloakAdmin Python-Klasse kann dann mit diesen Credentials User und Gruppen abgefragen
 
-oder ohne user:
+
+oder ohne user (etwas umständlicher, lange nicht mehr getestet):
 - über admin cli in master realm
 - clients -> (realm-name)-realm (bei uns als SOSERVE-realm)
   - access type auf confidential umstellen, client id und secret generieren
