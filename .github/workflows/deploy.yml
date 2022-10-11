@@ -1,4 +1,4 @@
-name: Deploy
+name: Test and Deploy
 
 # run on push to master (includes when PR is merged) and test_deploy (testing of this script) or when manually triggered
 on:
@@ -20,22 +20,27 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    - name: set up config
+    - name: Set up config from secrets
       # tests need config, but might contain sensitive data, workaround:
-      # content of config.json has been base64 encoded in secrets (via base64 config.json)
-      # now decode it and create the file
+      # content of config.json has been base64 encoded in secrets (simple via base64 config.json)
+      # now decode it and create the config file again
       run: |
         echo -n '${{ secrets.CONFIG }}' | base64 --decode > config.json
     - name: Run tests
       run: |
         python -m tornado.testing api_test.py
+    - name: Clean up config
+      # even though runners get destroyed after execution: better safe than sorry, delete config file
+      run: |
+        rm -rf config.json
 
   deploy:
+    # deploy only runs when the tests succeed
     needs: test
     name: Deploy to Production Server
     runs-on: ubuntu-latest
     steps:
-      - name: ssh remote command to trigger deploy
+      - name: ssh remote and trigger deploy script on server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
