@@ -1,9 +1,9 @@
 name: Deploy
 
-# run on push to master (includes when PR is merged) or when manually triggered
+# run on push to master (includes when PR is merged) and test_deploy (testing of this script) or when manually triggered
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "test_deploy"]
   workflow_dispatch:
 
 jobs:
@@ -20,6 +20,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+    - name: set up config
+      # tests need config, but might contain sensitive data, workaround:
+      # content of config.json has been base64 encoded in secrets (via base64 config.json)
+      # now decode it and create the file
+      run: |
+        echo -n '${{ secrets.CONFIG }}' | base64 --decode > config.json
     - name: Run tests
       run: |
         python -m tornado.testing api_test.py
