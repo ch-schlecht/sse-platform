@@ -1,0 +1,30 @@
+name: Test and Deploy
+
+# run on push to master (includes when PR is merged) and test_deploy (testing of this script) or when manually triggered
+on:
+  push:
+    branches: [ "master", "test-deploy"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    # run tests first using reusable workflow test_caller, if tests fail, deploy job won't run
+    uses: ./.github/workflows/test_caller.yml
+    secrets:
+      CONFIG: ${{ secrets.CONFIG }}
+
+  deploy:
+    needs: test
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+    steps:
+      - name: ssh remote and trigger deploy script on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd ${{ secrets.DEPLOY_SCRIPT_LOCATION }}
+            sh deploy.sh
