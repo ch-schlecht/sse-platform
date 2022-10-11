@@ -3,7 +3,7 @@ name: Test and Deploy
 # run on push to master (includes when PR is merged) and test_deploy (testing of this script) or when manually triggered
 on:
   push:
-    branches: [ "master", "test_deploy"]
+    branches: [ "master", "test-deploy"]
   workflow_dispatch:
 
 jobs:
