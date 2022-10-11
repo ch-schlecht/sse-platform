@@ -1,0 +1,35 @@
+name: reusable test workflow
+
+on:
+  workflow_call:
+    secrets:
+      CONFIG:
+        required: true
+
+jobs:
+  test:
+    name: run tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.10.7
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.10.7
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: Set up config from secrets
+      # tests need config, but might contain sensitive data, workaround:
+      # content of config.json has been base64 encoded in secrets (simple via base64 config.json)
+      # now decode it and create the config file again
+      run: |
+        echo -n '${{ secrets.CONFIG }}' | base64 --decode > config.json
+    - name: Run tests
+      run: |
+        python -m tornado.testing api_test.py
+    - name: Clean up config
+      # even though runners get destroyed after execution: better safe than sorry, delete config file
+      run: |
+        rm -rf config.json
