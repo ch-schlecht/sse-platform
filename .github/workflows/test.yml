@@ -1,0 +1,15 @@
+name: Test
+
+# run on push to any branches except master or test-deploy or when manually triggered
+on:
+  push:
+    branches-ignore:
+      - "master"
+      - "test-deploy"
+  workflow_dispatch:
+
+jobs:
+  test:
+    uses: ./.github/workflows/test_caller.yml
+    secrets:
+      CONFIG: ${{ secrets.CONFIG }}

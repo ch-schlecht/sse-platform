@@ -11,8 +11,8 @@ In order to be able to run this software, some modules are required to be instal
 $ pip install -r requirements.txt
 ```
 
-Furthermore, you will need an instance of Keycloak Authentication Service, where have access to the administration console.
-Please Consult the [Guides](https://www.keycloak.org/guides) for installation procedures.
+Furthermore, you will need an instance of Keycloak Authentication Service.
+Please consult the [guides](https://www.keycloak.org/guides) for installation procedures.
 
 There are some crucial configurations of the Keycloak Server needed to work with this platform, which are loosly described in ```keycloak_config.md``` (at this point only in German).
 
