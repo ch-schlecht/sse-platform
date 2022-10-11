@@ -1,7 +1,8 @@
+# this workflow has been separated to avoid copy pasting the same job, because on master tests and deploy is run and on the other branches only test runs
 name: reusable test workflow
 
 on:
-  workflow_call:
+  workflow_call: # workflow only runs when being called by another workflow
     secrets:
       CONFIG:
         required: true

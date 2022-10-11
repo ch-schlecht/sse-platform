@@ -7,15 +7,17 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    # run tests first using reusable workflow test_caller, if tests fail, deploy job won't run
+    uses: ./.github/workflows/test_caller.yml
+    secrets:
+      CONFIG: ${{ secrets.CONFIG }}
+
   deploy:
+    needs: test
     name: Deploy to Production Server
     runs-on: ubuntu-latest
     steps:
-      - name: run tests
-        # run tests first using reusable workflow test_caller, if tests fail, future steps won't run
-        uses: ./.github/workflows/test_caller.yml
-        secrets:
-          CONFIG: ${{ secrets.CONFIG }}
       - name: ssh remote and trigger deploy script on server
         uses: appleboy/ssh-action@master
         with:
