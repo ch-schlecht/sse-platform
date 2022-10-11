@@ -1,0 +1,11 @@
+__pycache__
+.env
+.idea
+client_examples
+docs
+example_config.json
+example_verify_keys.json
+keycloak_config.md
+LICENSE
+log.log
+README.md

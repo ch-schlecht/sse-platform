@@ -1,6 +1,14 @@
+module_templates/
+
+.idea
+
+signing_key.key
+verify_key.key
+
 /modules
 /modules/*
 config.json
+verify_keys.json
 
 
 # Byte-compiled / optimized / DLL files

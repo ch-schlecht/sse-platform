@@ -1,6 +1,6 @@
 
-var baseUrl = 'https://localhost:8888';
-var newTabUrl = 'https://localhost';
+var baseUrl = window.location.origin;
+var newTabUrl= baseUrl.replace('s','').substr(0, baseUrl.lastIndexOf(':')-1);
 var $body = $('body');
 /**
  * on tabchange- adds or removes selected class from tab
@@ -36,8 +36,10 @@ $(document).ready(function () {
 		var pathname = window.location.pathname; // Returns path only (/path/example.html)
 		var url      = window.location.href;     // Returns full URL (https://example.com/path/example.html)
 		var origin   = window.location.origin;   // Returns base URL (https://example.com)
+		window.history.pushState("login", "SSE Platform Login", origin + '/login?'); //needs firefox 4+, works in chrome
 		window.location.hash = 'login';
-		//window.history.pushState("login", "SSE Platform Login", origin + '/login?'); //needs firefox 4+, works in chrome
+		//$('#login').addClass('selected');
+
 
 });
 
@@ -64,7 +66,6 @@ $(document).ready(function () {
  * save username and password
  */
 function login() {
-
   var username = $('input#username').val();
   var password = $('input#password').val();
 
@@ -81,7 +82,7 @@ function login() {
 
 	$.ajax({
 		type: 'POST',
-		url: baseUrl + '/login?nickname=' + username + '&password=' + password,
+		url: '/login?nickname=' + username + '&password=' + password,
 		success: function (data) {
 			loadMainPage();
 		},
@@ -113,7 +114,7 @@ function register() {
   if (validateEmail(mail)) {
 		$.ajax({
 			type: 'POST',
-			url: baseUrl + '/register?email=' + mail + '&nickname=' + username + '&password=' + password,
+			url: '/register?email=' + mail + '&nickname=' + username + '&password=' + password,
 			success: function (data) {
 				alert('Registered successfully.');
 				loadMainPage();
@@ -152,11 +153,11 @@ function loadMainPage() {
 
 	$.ajax({
 		type: 'GET',
-		url: baseUrl + '/main',
+		url: '/main',
 
 		success: function (data) {
 			setTimeout(function() {
-				window.location.href = baseUrl + '/main';
+				window.location.href = '/main';
 			}, 333);
 		},
 
@@ -174,3 +175,47 @@ function loadMainPage() {
 		},
 	});
 }
+
+
+function sendForgotPassword(){
+	let email = $("#emailForgot").val();
+	$.ajax({
+		type: "POST",
+		url: "/password/forgot?email=" + email,
+		success: function(data){
+			alert("An Email has been sent to your adress!");
+		},
+		error: function(xhr, status, error){
+			alert("An unknown error occured");
+			console.log(error);
+			console.log(status);
+			console.log(xhr);
+		}
+	})
+}
+
+function onSignIn(googleUser) {
+	let profile = googleUser.getBasicProfile();
+	let id_token = googleUser.getAuthResponse().id_token;
+	console.log(id_token);
+	console.log('ID: ' + profile.getId()); // Do not send to your backend! Use an ID token instead.
+	console.log('Name: ' + profile.getName());
+	console.log('Email: ' + profile.getEmail()); // This is null if the 'email' scope is not present.
+
+	$.ajax({
+		type: "POST",
+		url: "/google_signin?id_token=" + id_token,
+		success: function(data){
+			setTimeout(function() {
+				window.location.href = '/main';
+			}, 333);
+		},
+		error: function(xhr, status, error){
+			alert("An unknown error occured");
+			console.log(error);
+			console.log(status);
+			console.log(xhr);
+		}
+	});
+}
+
