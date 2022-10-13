@@ -34,17 +34,16 @@ class LoginCallbackHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
         # keycloak redirects you back here with this code
         code = self.get_argument("code", None)
         if code is None:
-            print("error, code None")
+            self.set_status(400)
+            self.write({"status": 400,
+                        "success": False,
+                        "reason": "missing_key:code"})
+            return
 
         #exchange authorization code for token
         # (redirect_uri has to match the uri in keycloak.auth_url(...) as per openID standard)
         token = global_vars.keycloak.token(code=code, grant_type=[
                                            "authorization_code"], redirect_uri=global_vars.keycloak_callback_url)
-        print(token)
-
-        # get user info, (not really necessary here though)
-        userinfo = global_vars.keycloak.userinfo(token['access_token'])
-        print(userinfo)
 
         # dump token dict to str and store it in a secure cookie (BaseHandler will decode it later to validate a user is logged in)
         if global_vars.domain == "localhost":
@@ -77,7 +76,6 @@ class LogoutHandler(BaseHandler, metaclass=ABCMeta):
             self.clear_cookie("access_token", domain="." + global_vars.domain)
 
         # perform logout in keycloak
-        print(self._access_token)
         global_vars.keycloak.logout(self._access_token["refresh_token"])
 
         self.set_status(200)

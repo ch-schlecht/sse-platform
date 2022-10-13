@@ -2,7 +2,7 @@ from abc import ABCMeta
 import json
 
 from keycloak import KeycloakGetError
-from keycloak.exceptions import KeycloakAuthenticationError
+from keycloak.exceptions import KeycloakError
 from tornado.options import options
 import tornado.web
 
@@ -69,7 +69,7 @@ class BaseHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
                 self.current_userinfo = None
                 self._access_token = None
                 self.redirect("/login")
-        except KeycloakAuthenticationError as e:
+        except KeycloakError as e:
             print(e)
             self.current_user = None
             self.current_userinfo = None
