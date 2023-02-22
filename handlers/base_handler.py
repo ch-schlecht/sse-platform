@@ -50,7 +50,7 @@ class BaseHandler(tornado.web.RequestHandler, metaclass=ABCMeta):
         try:
             # try to refresh the token and fetch user info. this will fail if there is no valid session
             token = global_vars.keycloak.refresh_token(token['refresh_token'])
-            userinfo = global_vars.keycloak.userinfo(token['access_token'])
+            userinfo = global_vars.keycloak.introspect(token['access_token'])
             # if token is still valid --> successfull authentication --> we set the current_user
             if userinfo:
                 # set current_user as user id for legacy reasons, TODO might be able to get rid of that
